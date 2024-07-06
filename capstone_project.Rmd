@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "DSE6311 Capstone Project"
 author: "Daniel Jackson, Nischal Panta, Nelson Tran"
 date: "`r Sys.Date()`"
 output: word_document
@@ -7,7 +7,5 @@ output: word_document
 
 # Read in Data
 ```{r 1}
-getwd()
-cov_df = read.csv()
-
+cov_df = read.csv("capstone_data.csv")
 ```
