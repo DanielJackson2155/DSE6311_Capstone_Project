@@ -1,0 +1,13 @@
+---
+title: "Untitled"
+author: "Daniel Jackson, Nischal Panta, Nelson Tran"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+# Read in Data
+```{r 1}
+getwd()
+cov_df = read.csv()
+
+```
