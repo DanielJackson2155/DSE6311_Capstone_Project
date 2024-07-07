@@ -8,4 +8,22 @@ output: word_document
 # Read in Data
 ```{r 1}
 cov_df = read.csv("capstone_data.csv")
+
+# Remove X variable, ResponseId variable
+cov_df = cov_df[, -which(names(cov_df) == "X")]
+cov_df = cov_df[, -which(names(cov_df) =="ResponseId")]
+
+# We want to use snakecase on features and simplify features. Before we do that, we need to figure out what features we want to keep and what ones we want to get rid of.
+# We already got rid of the X variable from converting our file to a CSV and the ResponseID.
+
+# Data frame dimension
+dim(cov_df)
+# 2534 observations
+# 57 variables
+
+# Print names of variables in data set
+colnames(cov_df)
+
+# Check for NA values
+colSums(is.na(cov_df))
 ```
