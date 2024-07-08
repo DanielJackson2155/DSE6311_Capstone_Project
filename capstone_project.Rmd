@@ -37,13 +37,13 @@ colSums(is.na(cov_df))
 ```
 
 
-#We want to see what the dataset looks like, we can plot to see the spread of the data. 
+# We want to see what the dataset looks like, we can plot to see the spread of the data. 
 # We have character variables that can be turned into factors 
 # We also have integers which can also be turned into factors
-#now the variables have levels.
+# Now the variables have levels.
 
-#We also have continuous variables which can be used to create histograms 
-#The categorical variables can be used to create bar plots
+# We also have continuous variables which can be used to create histograms 
+# The categorical variables can be used to create bar plots
 ```{r 2}
 # Convert character variables and integers to factors w/ levels
 cov_df <- cov_df %>% 
