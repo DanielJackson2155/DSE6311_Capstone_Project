@@ -5,6 +5,14 @@ date: "`r Sys.Date()`"
 output: word_document
 ---
 
+#Loading libraries 
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+
 # Read in Data
 ```{r 1}
 cov_df = read.csv("capstone_data.csv")
@@ -26,4 +34,62 @@ colnames(cov_df)
 
 # Check for NA values
 colSums(is.na(cov_df))
+```
+
+
+#We want to see what the dataset looks like, we can plot to see the spread of the data. 
+# We have character variables that can be turned into factors 
+# We also have integers which can also be turned into factors
+#now the variables have levels.
+
+#We also have continuous variables which can be used to create histograms 
+#The categorical variables can be used to create bar plots
+```{r 2}
+# Convert character variables and integers to factors w/ levels
+cov_df <- cov_df %>% 
+  mutate_if(is.character, as.factor)
+
+cov_df <- cov_df %>% 
+  mutate_if(is.integer, as.factor)
+
+# Function to create bar plots for categorical variables
+plot_cat <- function(df, var) {
+  ggplot(df, aes_string(x = var)) +
+    geom_bar(fill = sample(colors(), 1)) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    ) +
+    labs(title = paste("Count of", var), x = var, y = "Count")
+}
+
+# Function to create histograms for continuous variables
+plot_cont <- function(df, var) {
+  ggplot(df, aes_string(x = var)) +
+    geom_histogram(binwidth = 1, fill = sample(colors(), 1), color = "black") +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold")
+    ) +
+    labs(title = paste("Histogram of", var), x = var, y = "Frequency")
+}
+
+# Create two separate datasets for plotting
+cat_vars <- names(Filter(is.factor, cov_df))
+cont_vars <- names(Filter(is.numeric, cov_df))
+
+# Ploting categorical variables
+for (cat_var in cat) {
+  print(plot_cat(cov_df, cat_var))
+}
+
+# Ploting all continuous variables
+for (cont_var in cont_vars) {
+  print(plot_cont(cov_df, cont_var))
+}
 ```
