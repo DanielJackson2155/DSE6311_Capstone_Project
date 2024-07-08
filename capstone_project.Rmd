@@ -79,17 +79,17 @@ plot_cont <- function(df, var) {
     labs(title = paste("Histogram of", var), x = var, y = "Frequency")
 }
 
-# Create two separate datasets for plotting
+# Create two seperate datasets for ploting
 cat_vars <- names(Filter(is.factor, cov_df))
 cont_vars <- names(Filter(is.numeric, cov_df))
 
-# Ploting categorical variables
-for (cat_var in cat) {
-  print(plot_cat(cov_df, cat_var))
+# Ploting icategorical variables
+for (cat_vars in cat_vars) {
+  print(plot_cat(cov_df, cat_vars))
 }
 
 # Ploting all continuous variables
-for (cont_var in cont_vars) {
-  print(plot_cont(cov_df, cont_var))
+for (cont_vars in cont_vars) {
+  print(plot_cont(cov_df, cont_vars))
 }
 ```
