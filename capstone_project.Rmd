@@ -10,6 +10,7 @@ output: word_document
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(janitor)
 ```
 
 
@@ -187,4 +188,11 @@ for (cat_vars in cat_vars) {
 for (cont_vars in cont_vars) {
   print(plot_cont(cov_df, cont_vars))
 }
+```
+
+Please Install the Janitor Package if you haven't already, it allows for snake casing all the variables much easier
+```{r}
+#using the Janitor Package for snake casing each var
+cov_df <- cov_df %>%
+  clean_names(case = "snake")
 ```
