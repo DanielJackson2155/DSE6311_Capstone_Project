@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: word_document
 ---
 
-#Loading libraries 
+# Loading libraries 
 ```{r}
 library(ggplot2)
 library(dplyr)
@@ -100,16 +100,11 @@ cov_df = cov_df %>%
 cov_df = cov_df %>%
   select(-any_of(features_round_up))
 
-# We will use the average of total_anxiety_level as threshold to create binary classifier which will be our response variable for our binary classification models that we build
+# Find average and median value of total_anxiety_level
 avg_tot_anx_lev = mean(cov_df$total_anxiety_level)
 # Mean is 251.17
-
-# Now, let us create change_anxiety response variable with two levels: "yes" if the value is above the average and "no" if value is below the average
-cov_df = cov_df %>%
-  mutate(change_anxiety = ifelse(total_anxiety_level > avg_tot_anx_lev, "yes", "no"))
-
-# Now, we can remove the total_anxiety_level variable
-cov_df = cov_df[, -which(names(cov_df) =="total_anxiety_level")]
+med_tot_anx_lev = median(cov_df$total_anxiety_level)
+# Median is 260
 
 dim(cov_df)
 # 2534 observations
@@ -123,15 +118,30 @@ cov_df = cov_df %>%
 
 # We do not have enough information from out data on the Type variable. Let us remove that.
 # Also, the binary Educ_College_Grad can be derived from Educ_Self variable. Let us remove that as well.
+# Since we already have a Ethnoracial_Group variable, we can remove Ethnoracial_Group_f, NHWhite_f and Ethnoracial_Group_White1_Asian2 
 cov_df = cov_df[, -which(names(cov_df) =="Type")]
 cov_df = cov_df[, -which(names(cov_df) =="Educ_College_Grad")]
+cov_df = cov_df[, -which(names(cov_df) =="Ethnoracial_Group_f")]
+cov_df = cov_df[, -which(names(cov_df) =="NHWhite_f")]
+cov_df = cov_df[, -which(names(cov_df) =="Ethnoracial_Group_White1_Asian2")]
 
 dim(cov_df)
 # 2534 observations
-# 31 variables
+# 28 variables
+
+# Check for NAs again
+colSums(is.na(cov_df))
+# Ethnoracial_Group has 280 NA values
+# Age has 8
 ```
 
 Next, we need to clean up our features and convert them to snake case for ease of coding/analysis. Then need to decide how we want to handle any remaining NA values.
+Please Install the Janitor Package if you haven't already, it allows for snake casing all the variables much easier
+```{r 6}
+#using the Janitor Package for snake casing each var
+cov_df <- cov_df %>%
+  clean_names(case = "snake")
+```
 
 We want to see what the dataset looks like, we can plot to see the spread of the data. 
 We have character variables that can be turned into factors 
@@ -140,7 +150,7 @@ Now the variables have levels.
 
 We also have continuous variables which can be used to create histograms 
 The categorical variables can be used to create bar plots
-```{r 2}
+```{r 7}
 # Convert character variables and integers to factors w/ levels
 cov_df <- cov_df %>% 
   mutate_if(is.character, as.factor)
@@ -188,11 +198,4 @@ for (cat_vars in cat_vars) {
 for (cont_vars in cont_vars) {
   print(plot_cont(cov_df, cont_vars))
 }
-```
-
-Please Install the Janitor Package if you haven't already, it allows for snake casing all the variables much easier
-```{r}
-#using the Janitor Package for snake casing each var
-cov_df <- cov_df %>%
-  clean_names(case = "snake")
 ```
