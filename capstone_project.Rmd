@@ -11,6 +11,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(janitor)
+library(DMwR2)
 ```
 
 
@@ -198,4 +199,24 @@ for (cat_vars in cat_vars) {
 for (cont_vars in cont_vars) {
   print(plot_cont(cov_df, cont_vars))
 }
+```
+Upon looking at the data, we found that there are a lot of N/A's in "ethnoracial_group" and "age." We thought about either making another category (other) that we could assign to the N/A values or we could use K-nearest-neighbors (KNN) to fill in the missing values.
+
+We wanted to use KNN to fill in the missing values.
+```{r}
+#Using K-nearest-neighbors to fill in the missing values
+cov_df <- knnImputation(cov_df, k = 3)
+#checking to see if there are any more N/a values
+colSums(is.na(cov_df))
+unique(cov_df$age)
+unique(cov_df$ethnoracial_group)
+```
+I thought there there were a few observations that I would consider as outliers and wanted to get rid of them in the case that they will affect our models in a bad way.
+```{r}
+#creating a cut off for hours of exercise and then subsetting those that aren't wanted from the data frame
+threshold_hrs_exercise <- 9 
+cov_df <- subset(cov_df, hrs_exercise < threshold_hrs_exercise)
+#creating an array of which ages that should be kept in the data frame
+ages_to_keep <- c("18 to 24", "25 to 32", "33 to 44", "45 to 54", "55 to 64")
+cov_df <- filter(cov_df, age %in% ages_to_keep)
 ```
