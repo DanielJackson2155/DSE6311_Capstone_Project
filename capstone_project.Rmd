@@ -265,5 +265,17 @@ corrplot(cor_matrix_range, method = "color", type = "full",
 
 ```
 
+Another test for multicollinearity is a VIF Variance Inflation Factor. This is a good measure of the amount of multicollinearity in a set of multiple regression variables. When multicollinearity exists it undermines the statistical significance of an independent variable, increases model complexity and can cause overfitting. It will also inflate the variance (standard error) of coefficient estimates
 
+```{r}
+# lets fit a linear model with all our numerical variables
+multi_col_model <- lm(total_anxiety_level ~ ., data = num_data)
+
+# now lets calculate the Variance Inflation Factor (VIF) to check if we have highly correlated variables. 
+vif_values <- vif(multi_col_model)
+
+# As we can see, all the values are fairly low. We are safe
+print(vif_values)
+
+```
 
