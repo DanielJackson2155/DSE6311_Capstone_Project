@@ -220,3 +220,50 @@ cov_df <- subset(cov_df, hrs_exercise < threshold_hrs_exercise)
 ages_to_keep <- c("18 to 24", "25 to 32", "33 to 44", "45 to 54", "55 to 64")
 cov_df <- filter(cov_df, age %in% ages_to_keep)
 ```
+
+
+We have 28 variables in our dataset so far and 25 of them are numerical. There is a chance our variables might be highly correlated to each other which could create issues with our models. To prevent that lets create a correlation matrix and then plot of all our numerical variables to investigate. We can choose a range to be able to see the highly corrolated values 
+```{r}
+
+# Let's select numerical variables again since we made a few edits since our last histogram
+numeric_vars <- sapply(cov_df, is.numeric)
+num_data <- cov_df[, numeric_vars]
+
+# Creating a simple matrix for all our numerical variable
+cor_matrix <- cor(num_data, use = "complete.obs")
+
+print(cor_matrix)
+# creating the correlation plot
+# lets also make necessary adjustments to make the text smaller 
+corrplot(cor_matrix, method = "color", type = "full", 
+         tl.col = "black", tl.srt = 45, tl.cex = 0.8, 
+         title = "Correlation Plot of Numerical Variables", mar = c(0, 0, 1, 0))
+
+
+# variable "a" will of course be correlated with "a" so lets create a range for significantly correlated variables so absolute value of greater than 0.5 but less than absolute value of 0.99 so we do not get the 1 or -1 values. 
+cor_matrix_range <- cor_matrix
+cor_matrix_range[abs(cor_matrix_range) < 0.7 | abs(cor_matrix_range) >= 0.99] <- NA
+
+
+# to get a table of only the values in our range we need to plug it back in 
+cor_matrix_range_df <- as.data.frame(as.table(cor_matrix_range))
+
+# lets filter the correlation for our range. Redudency
+fil_cor_matrix_range_df <- cor_matrix_range_df %>%
+  filter((Freq > 0.7 & Freq < 0.99) | (Freq < -0.7 & Freq > -0.99))
+
+
+# now lets print the filtered correlations
+print(fil_cor_matrix_range_df)
+
+
+# lets repeat the plotting process
+corrplot(cor_matrix_range, method = "color", type = "full", 
+         tl.col = "black", tl.srt = 45, tl.cex = 0.8, 
+         na.label = " ", 
+         title = "Correlation Plot of Numerical Variables (0.7 < |r| < 0.99)", mar = c(0, 0, 1, 0))
+
+```
+
+
+
