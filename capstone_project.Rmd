@@ -7,6 +7,7 @@ output: word_document
 
 # Loading libraries 
 ```{r}
+library(tidyverse)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -14,6 +15,7 @@ library(janitor)
 library(DMwR2)
 library(corrplot)
 library(car)
+library(psych)
 ```
 
 
@@ -281,7 +283,7 @@ cor_matrix_range[abs(cor_matrix_range) < 0.7 | abs(cor_matrix_range) >= 0.99] <-
 # to get a table of only the values in our range we need to plug it back in 
 cor_matrix_range_df <- as.data.frame(as.table(cor_matrix_range))
 
-# lets filter the correlation for our range. Redudency
+# lets filter the correlation for our range. Redundancy
 fil_cor_matrix_range_df <- cor_matrix_range_df %>%
   filter((Freq > 0.7 & Freq < 0.99) | (Freq < -0.7 & Freq > -0.99))
 
@@ -311,4 +313,36 @@ vif_values <- vif(multi_col_model)
 print(vif_values)
 
 ```
+Categorical Variables summary that include Frequencies and percentages.
+```{r}
+#Using the tabyl function from Janitor we can create tables that have the frequencies and %'s
+cov_df %>%
+  tabyl(age) %>%
+  adorn_pct_formatting()
+cov_df %>%
+  tabyl(source) %>%
+  adorn_pct_formatting()
+cov_df %>%
+  tabyl(ethnoracial_group) %>%
+  adorn_pct_formatting()
+```
+Summary of the continuous variables' mean, median, standard deviation (SD), skewness, and kurtosis
+```{r}
+#We are using our numerical variables that we used for both the histograms, and multicollinearity
+cont_vars <- names(Filter(is.numeric, cov_df))
 
+#creating a function that will summarize the numerical variables for the statistics that we want
+cont_summary <- function(df, var) {
+  cont_summary <- data.frame(
+  Mean = mean(df[[var]]),
+  Median = median(df[[var]]),
+  SD = sd(df[[var]]),
+  Skewness = skew(df[[var]]),
+  Kurtosis = kurtosi(df[[var]])
+  )}
+
+#creating the summary for each numerical var
+for (cont_vars in cont_vars) {
+  print(cont_summary(cov_df, cont_vars))
+}
+```
