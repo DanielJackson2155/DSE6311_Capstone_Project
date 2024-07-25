@@ -5,12 +5,20 @@ date: "`r Sys.Date()`"
 output: word_document
 ---
 
+There will be a set of initials at the end of each code block representing which contributor wrote that line of code:
+DJ for Daniel Jackson
+NP for Nischal Panta
+NT for Nelson Tran
+We will use # all to represent code block we all helped create.
+
 # Loading libraries 
 ```{r}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(janitor)
+
+# all
 ```
 
 
@@ -35,6 +43,8 @@ colnames(cov_df)
 
 # Check for NA values
 colSums(is.na(cov_df))
+
+# DJ
 ```
 
 
@@ -81,6 +91,8 @@ colSums(is.na(cov_df))
 dim(cov_df)
 # 2534 observations
 # 38 variables
+
+# DJ
 ```
 
 
@@ -109,6 +121,8 @@ med_tot_anx_lev = median(cov_df$total_anxiety_level)
 dim(cov_df)
 # 2534 observations
 # 33 Variables
+
+# DJ
 ```
 
 Now, let us round any numeric value to then nearest whole number for ease of analysis.
@@ -133,6 +147,8 @@ dim(cov_df)
 colSums(is.na(cov_df))
 # Ethnoracial_Group has 280 NA values
 # Age has 8
+
+# DJ
 ```
 
 Next, we need to clean up our features and convert them to snake case for ease of coding/analysis. Then need to decide how we want to handle any remaining NA values.
@@ -141,6 +157,8 @@ Please Install the Janitor Package if you haven't already, it allows for snake c
 #using the Janitor Package for snake casing each var
 cov_df <- cov_df %>%
   clean_names(case = "snake")
+
+# NT
 ```
 
 We want to see what the dataset looks like, we can plot to see the spread of the data. 
@@ -198,4 +216,6 @@ for (cat_vars in cat_vars) {
 for (cont_vars in cont_vars) {
   print(plot_cont(cov_df, cont_vars))
 }
+
+# NP
 ```
