@@ -29,11 +29,11 @@ library(psych)
 
 # Read in Data
 ```{r 1}
-cov_df = read.csv("capstone_data.csv")
+cov_df <- read.csv("capstone_data.csv")
 
 # Remove X variable, ResponseId variable
-cov_df = cov_df[, -which(names(cov_df) == "X")]
-cov_df = cov_df[, -which(names(cov_df) =="ResponseId")]
+cov_df <- cov_df[, -which(names(cov_df) == "X")]
+cov_df <- cov_df[, -which(names(cov_df) =="ResponseId")]
 
 # We want to use snakecase on features and simplify features. Before we do that, we need to figure out what features we want to keep and what ones we want to get rid of.
 # We already got rid of the X variable from converting our file to a CSV and the ResponseID.
@@ -59,23 +59,23 @@ Let us also remove the zip code variable. There is 601 NA values and we are not 
 We can also remove the Source_NCSU variable as our Source variable tells us what school each student attends.
 Let us also remove the z-scores of students bad mood and lost time for our analysis.
 ```{r 3}
-cov_df = cov_df[, -which(names(cov_df) =="Class_Self_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Class_Mom_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Class_Dad_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Income_Relative_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Educ_Mom_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Educ_Dad_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Health_General_group")]
-cov_df = cov_df[, -which(names(cov_df) =="BMI_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Hrs_Outdoor_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Hrs_Screen_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Hrs_Exercise_group")]
-cov_df = cov_df[, -which(names(cov_df) =="Age_18to25")]
-cov_df = cov_df[, -which(names(cov_df) =="Age_3Groups")]
-cov_df = cov_df[, -which(names(cov_df) =="Source_NCSU")]
-cov_df = cov_df[, -which(names(cov_df) =="GIS_ZIP")]
-cov_df = cov_df[, -which(names(cov_df) =="COVID_F1_BadMoods")]
-cov_df = cov_df[, -which(names(cov_df) =="COVID_F2_LostTime")]
+cov_df <- cov_df[, -which(names(cov_df) =="Class_Self_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Class_Mom_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Class_Dad_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Income_Relative_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Educ_Mom_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Educ_Dad_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Health_General_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="BMI_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Hrs_Outdoor_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Hrs_Screen_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Hrs_Exercise_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Age_18to25")]
+cov_df <- cov_df[, -which(names(cov_df) =="Age_3Groups")]
+cov_df <- cov_df[, -which(names(cov_df) =="Source_NCSU")]
+cov_df <- cov_df[, -which(names(cov_df) =="GIS_ZIP")]
+cov_df <- cov_df[, -which(names(cov_df) =="COVID_F1_BadMoods")]
+cov_df <- cov_df[, -which(names(cov_df) =="COVID_F2_LostTime")]
 
 # Check for NAs again
 colSums(is.na(cov_df))
@@ -84,10 +84,10 @@ colSums(is.na(cov_df))
 # 8 NA values in Age and Source
 
 # Store Classification into empty vector for now. Might need to revisit this later and re-read in data if remove any observations. And then remove Classification and Classification_High
-psycho_class = c()
-pyscho_class = cov_df$Classification
-cov_df = cov_df[, -which(names(cov_df) =="Classification")]
-cov_df = cov_df[, -which(names(cov_df) =="Classification_High")]
+psycho_class <- c()
+pyscho_class <- cov_df$Classification
+cov_df <- cov_df[, -which(names(cov_df) =="Classification")]
+cov_df <- cov_df[, -which(names(cov_df) =="Classification_High")]
 
 # Check for NAs again
 colSums(is.na(cov_df))
@@ -104,23 +104,23 @@ dim(cov_df)
 Now let us merge COVID_Afraid, COVID_Irritable, COVID_Guilty, COVID_Sad, COVID_Preoccupied and COVID_Stressed into one response variable called "total_anxiety_level". Before we do that, let us round each observation in each feature to nearest whole number.
 ```{r 4}
 # Which features do we want to round up: COVID_Afraid, COVID_Irritable, COVID_Guilty, COVID_Sad, COVID_Preoccupied and COVID_Stressed
-features_round_up = c("COVID_Afraid", "COVID_Irritable", "COVID_Guilty", "COVID_Sad", "COVID_Preoccupied", "COVID_Stressed")
-cov_df = cov_df %>%
+features_round_up <- c("COVID_Afraid", "COVID_Irritable", "COVID_Guilty", "COVID_Sad", "COVID_Preoccupied", "COVID_Stressed")
+cov_df <- cov_df %>%
   mutate_at(vars(features_round_up), ~ ceiling(.))
 
 # Now let us merge these into one variable called total_anxiety_level
-cov_df = cov_df %>%
+cov_df <- cov_df %>%
   mutate(total_anxiety_level = COVID_Afraid + COVID_Irritable + 
            COVID_Guilty + COVID_Sad + COVID_Preoccupied)
 
 # Now, let us remove those variables added together from the data set
-cov_df = cov_df %>%
+cov_df <- cov_df %>%
   select(-any_of(features_round_up))
 
 # Find average and median value of total_anxiety_level
-avg_tot_anx_lev = mean(cov_df$total_anxiety_level)
+avg_tot_anx_lev <- mean(cov_df$total_anxiety_level)
 # Mean is 251.17
-med_tot_anx_lev = median(cov_df$total_anxiety_level)
+med_tot_anx_lev <- median(cov_df$total_anxiety_level)
 # Median is 260
 
 dim(cov_df)
@@ -132,17 +132,17 @@ dim(cov_df)
 
 Now, let us round any numeric value to then nearest whole number for ease of analysis.
 ```{r 5}
-cov_df = cov_df %>%
+cov_df <- cov_df %>%
   mutate_if(is.numeric, function(x) round(x))
 
 # We do not have enough information from out data on the Type variable. Let us remove that.
 # Also, the binary Educ_College_Grad can be derived from Educ_Self variable. Let us remove that as well.
 # Since we already have a Ethnoracial_Group variable, we can remove Ethnoracial_Group_f, NHWhite_f and Ethnoracial_Group_White1_Asian2 
-cov_df = cov_df[, -which(names(cov_df) =="Type")]
-cov_df = cov_df[, -which(names(cov_df) =="Educ_College_Grad")]
-cov_df = cov_df[, -which(names(cov_df) =="Ethnoracial_Group_f")]
-cov_df = cov_df[, -which(names(cov_df) =="NHWhite_f")]
-cov_df = cov_df[, -which(names(cov_df) =="Ethnoracial_Group_White1_Asian2")]
+cov_df <- cov_df[, -which(names(cov_df) =="Type")]
+cov_df <- cov_df[, -which(names(cov_df) =="Educ_College_Grad")]
+cov_df <- cov_df[, -which(names(cov_df) =="Ethnoracial_Group_f")]
+cov_df <- cov_df[, -which(names(cov_df) =="NHWhite_f")]
+cov_df <- cov_df[, -which(names(cov_df) =="Ethnoracial_Group_White1_Asian2")]
 
 dim(cov_df)
 # 2534 observations
@@ -375,7 +375,7 @@ Training/Test Data
 Let us split our data set into test and training data. 70% of our data will be the training data and 30% will be our test data. The trained data will be used to train our models while the test data will be used to test the accuracy of the trained model's predictions.
 ```{r 16}
 set.seed(123) # set.seed(123) for reproducibility
-train = sample(nrow(cov_df), 0.7 * nrow(cov_df))
+train <-sample(nrow(cov_df), 0.7 * nrow(cov_df))
 train_df = cov_df[train, ]
 test_df = cov_df[-train, ]
 
