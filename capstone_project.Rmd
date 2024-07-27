@@ -228,6 +228,8 @@ for (cont_vars in cont_vars) {
 
 Upon looking at the data, we found that there are a lot of N/A's in "ethnoracial_group" and "age." We thought about either making another category (other) that we could assign to the N/A values or we could use K-nearest-neighbors (KNN) to fill in the missing values.
 
+Just a side note, randomForest could be used to fill in missing quantitative values too, but since the two variables we are using KNN imputation for are qualitative, we do not need to do randomForest.
+
 We wanted to use KNN to fill in the missing values.
 ```{r 8}
 #Using K-nearest-neighbors to fill in the missing values
