@@ -228,6 +228,8 @@ for (cont_vars in cont_vars) {
 
 Upon looking at the data, we found that there are a lot of N/A's in "ethnoracial_group" and "age." We thought about either making another category (other) that we could assign to the N/A values or we could use K-nearest-neighbors (KNN) to fill in the missing values.
 
+Just a side note, randomForest could be used to fill in missing quantitative values too, but since the two variables we are using KNN imputation for are qualitative, we do not need to do randomForest.
+
 We wanted to use KNN to fill in the missing values.
 ```{r 8}
 #Using K-nearest-neighbors to fill in the missing values
@@ -256,6 +258,8 @@ boxplot.stats(cov_df$age)$out
 boxplot.stats(cov_df$hrs_outdoor)$out
 boxplot.stats(cov_df$hrs_exercise)$out
 boxplot.stats(cov_df$bmi)$out
+
+# NT
 ```
 Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
 ```{r 10}
@@ -269,6 +273,8 @@ for (x in c("bmi"))
 cov_df <- drop_na(cov_df)
 #checking to see if the N/a values are removed from the data set
 colSums(is.na(cov_df))
+
+#NT
 ```
 
 I thought there there were a few observations from the qualitative variables that I would consider as outliers and wanted to get rid of them in the case that they will affect our models in a bad way.
@@ -279,6 +285,8 @@ cov_df <- subset(cov_df, hrs_exercise < threshold_hrs_exercise)
 #creating an array of which ages that should be kept in the data frame
 ages_to_keep <- c("18 to 24", "25 to 32", "33 to 44", "45 to 54", "55 to 64")
 cov_df <- filter(cov_df, age %in% ages_to_keep)
+
+#NT
 ```
 
 We have 28 variables in our dataset so far and 25 of them are numerical. There is a chance our variables might be highly correlated to each other which could create issues with our models. To prevent that lets create a correlation matrix and then plot of all our numerical variables to investigate. We can choose a range to be able to see the highly correlated values 
@@ -322,6 +330,7 @@ corrplot(cor_matrix_range, method = "color", type = "full",
          na.label = " ", 
          title = "Correlation Plot of Numerical Variables (0.7 < |r| < 0.99)", mar = c(0, 0, 1, 0))
 
+# NP
 ```
 
 Another test for multicollinearity is a VIF Variance Inflation Factor. This is a good measure of the amount of multicollinearity in a set of multiple regression variables. When multicollinearity exists it undermines the statistical significance of an independent variable, increases model complexity and can cause overfitting. It will also inflate the variance (standard error) of coefficient estimates
@@ -336,6 +345,7 @@ vif_values <- vif(multi_col_model)
 # As we can see, all the values are fairly low. We are safe
 print(vif_values)
 
+#NP
 ```
 
 Let us take the average of class_dad and class_mom variables and create new variable called class_family. We will round the average up to the nearest whole number and remove the class_dad and class_mom variables after
@@ -375,6 +385,8 @@ cov_df %>%
 cov_df %>%
   tabyl(ethnoracial_group) %>%
   adorn_pct_formatting()
+
+#NT
 ```
 Summary of the continuous variables' mean, median, standard deviation (SD), skewness, and kurtosis
 ```{r 17}
@@ -395,6 +407,8 @@ cont_summary <- function(df, var) {
 for (cont_vars in cont_vars) {
   print(cont_summary(cov_df, cont_vars))
 }
+
+#NT
 ```
 
 # Training and Test Data
