@@ -24,6 +24,7 @@ library(car)
 library(psych)
 library(pls)
 library(caret)
+library(MASS)
 
 # all
 ```
@@ -403,6 +404,8 @@ calcSplitRatio <- function(p = NA, df) {
 
 calcSplitRatio(26, cov_df)
 # Ideal training split ratio is 0.8 for training and 0.2 for testing.
+
+# DJ
 ```
 
 Use value from train_prop for p value in createDataPartition 
@@ -421,11 +424,12 @@ dim(test_df)
 # DJ
 ```
 
+# Imputations
 Now that the training and test data has been determined, we now will use KNN to fill in the missing values for ethnoracial_group and age predictors.
 ```{r 19}
 #Using K-nearest-neighbors to fill in the missing values
 train_df <- knnImputation(train_df, k = 3)
-test_df <- knnImputation(test_df, k =3)
+test_df <- knnImputation(test_df, k = 3)
 
 #checking to see if there are any more N/a values
 colSums(is.na(train_df))
@@ -439,9 +443,272 @@ unique(test_df$ethnoracial_group)
 ```
 
 # Model Building
+In order to start building our first model selection, we want to conduce a Principal Component Analysis first to reduce our dimensions. In order to do so, we need to first encode our three categorical variables: age, source, and ethno_racial group
+```{r 20}
+length(levels(train_df$age))
+length(levels(test_df$age))
+# 6 levels
+
+length(levels(train_df$source))
+length(levels(test_df$source))
+# 7 levels
+
+length(levels(train_df$ethnoracial_group))
+length(levels(test_df$ethnoracial_group))
+# 4 levels
+
+# DJ
+```
+We see that age has 6 unique classifiers, source has 7 unique classifiers and ethnoracial_group has 4 levels. We do not want to increase our dimensions of our dataset too much by conducting a one hot or dummy encoding on all three categorical variables. Since ethnoracial_group only has 4, we will conduct a one hot dummy encoding on this variable, which will add 4 more predictors into our data set.
+
+For both age and source, we will conduct a frequency encoding to avoid adding more predictors to our data set. 
+
+Below is the code to encode each of the three categorical variables in both the training and test set.
+```{r 21}
+# age variable code by NT
 
 
-#Throwaway Code
+# source variable frequency encoding by DJ
+# training data
+train_df <- train_df %>%
+  group_by(source) %>%
+  mutate(source_frequency = n()) %>%
+  ungroup() %>%
+  select(-source)
+
+# test data
+test_df <- test_df %>%
+  group_by(source) %>%
+  mutate(source_frequency = n()) %>%
+  ungroup() %>%
+  select(-source)
+
+
+# ethnoracial_group variable one-hot encoding
+# training data
+dummy_vars = dummyVars(~ ethnoracial_group, 
+                       data = train_df,
+                       levelsOnly = TRUE,
+                       fullRank = FALSE)
+encoded_ethno_racial_df <- predict(dummy_vars, newdata = train_df)
+# convert col names to lower case
+encoded_ethno_racial_df <- encoded_ethno_racial_df %>%
+  clean_names(case = "snake")
+train_df <- cbind(train_df, encoded_ethno_racial_df)
+# Remove ethno_racial variable
+train_df <- train_df %>%
+  select(-ethnoracial_group)
+
+# test data
+dummy_vars = dummyVars(~ ethnoracial_group, 
+                       data = test_df,
+                       levelsOnly = TRUE,
+                       fullRank = FALSE)
+encoded_ethno_racial_df <- predict(dummy_vars, newdata = test_df)
+# convert col names to lower case
+encoded_ethno_racial_df <- encoded_ethno_racial_df %>%
+  clean_names(case = "snake")
+test_df <- cbind(test_df, encoded_ethno_racial_df)
+# Remove ethno_racial variable
+test_df <- test_df %>%
+  select(-ethnoracial_group)
+
+# Now, for visual purposes in our data sets, let us move our response variable to the far right of all of our predictors.
+train_df <- train_df %>%
+  select(-total_anxiety_level, total_anxiety_level)
+# row names changed from 1 to x1 and so on. Let's reset that.
+rownames(train_df) <- NULL
+
+test_df <- test_df %>%
+  select(-total_anxiety_level, total_anxiety_level)
+# row names changed from 1 to x1 and so on. Let's reset that.
+rownames(test_df) <- NULL
+
+
+# DJ/NT
+```
+## Response Variable Transformation
+Before we center and scale our predictors to prepare for our PCA. We want to revisit the distribution of our response variable total_anxiety_level. We will look at both a histogram and Q-Q plot to see if we need to transform our response variable or not. We will also conduct the Shapiro-Wilk Test to see if our response variable has a normal distribution or not. If the p-value, of the test is less than 0.05, then we reject the null hypothesis that the distribution is normal.
+```{r 22}
+# histogram
+hist(cov_df$total_anxiety_level,
+     xlab = "Total Anxiety Level",
+     main = "Total Anxiety Level Distribution")
+
+# q-q plot
+qqnorm(cov_df$total_anxiety_level, main = "Q-Q Plot of Total Anxiety Level")
+qqline(cov_df$total_anxiety_level, col = "red")
+
+
+# Shapiro-Wilk Test
+print(shapiro.test(cov_df$total_anxiety_level))
+
+# DJ
+```
+The histogram looks like Total Anxiety Level relatively follows a normal distribution. However, when we look at the Q-Q plot, we see that the plot does not fully follow the reference line from -2 to 2 on the Theoretical Quantiles axis. This is proven by Shapiro-Wilk Test. With a p-value of 3.688e-12, we reject the null hypothesis and state that the distribution is not normal. Therefore, we need to transform our response variable. Below, we will try a few transformationts to see if that makes the distribution more normal.
+
+Square Root Transformation:
+```{r 23}
+# Square Root
+# histogram
+hist(sqrt(cov_df$total_anxiety_level),
+     xlab = "Square Root(Total Anxiety Level)",
+     main = "Square Root of Total Anxiety Level Distribution")
+
+# q-q plot
+qqnorm(sqrt(cov_df$total_anxiety_level), main = "Q-Q Plot of sqrt(Total Anxiety Level)")
+qqline(sqrt(cov_df$total_anxiety_level), col = "red")
+
+
+# Shapiro-Wilk Test
+print(shapiro.test(sqrt(cov_df$total_anxiety_level)))
+
+# DJ
+```
+Based on the histogram, Q-Q plot, and the Shapiro-Wilk Test, the square root transformation did not make the distribution more normal.
+
+Squared:
+```{r 24}
+# Squared
+# histogram
+hist((cov_df$total_anxiety_level)^2,
+     xlab = "(Total Anxiety Level)^2",
+     main = "Total Anxiety Level Squared Distribution")
+
+# q-q plot
+qqnorm((cov_df$total_anxiety_level)^2, main = "Q-Q Plot of (Total Anxiety Level)^2")
+qqline((cov_df$total_anxiety_level)^2, col = "red")
+
+
+# Shapiro-Wilk Test
+print(shapiro.test((cov_df$total_anxiety_level)^2))
+
+# DJ
+```
+Based on the histogram, Q-Q plot, and the Shapiro-Wilk Test, the squared transformation did not make the distribution more normal.
+
+Log Transformation:
+```{r 25}
+# Log
+# histogram
+hist(log(cov_df$total_anxiety_level),
+     xlab = "log(Total Anxiety Level)",
+     main = "Log Total Anxiety Level Distribution")
+
+# DJ
+```
+
+Just looking at the log transformation histogram, we see that the transformation did not make the response variable more normal.
+
+Let us try the Box-Cox transformation:
+```{r 25}
+# Box-Cox transformation from MASS package
+# First, we need to ensure our response variable is positive before transforming.
+range(cov_df$total_anxiety_level)
+# 0 to 500 is our range.
+# Therefore, we need to shift data to ensure it is all positive. We will shift by 1.
+cov_df$total_anxiety_level_shift <- cov_df$total_anxiety_level - min(cov_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = cov_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# Optimal lambda is 1.1
+
+# Box-Cox transformation function
+boxcox_transform <- function(x, lambda) {
+  if (lambda == 0) {
+    return(log(x))  # special case for when lambda = 0
+  } else {
+    return((x^lambda - 1) / lambda)
+  }
+}
+
+# Now we apply transformation to total_anxiety_level_shift
+cov_df$box_cox_anxiety_level <- boxcox_transform(cov_df$total_anxiety_level_shift, lambda_opt)
+
+# histogram
+hist(cov_df$box_cox_anxiety_level,
+     xlab = "Box-Cox Total Anxiety Level",
+     main = "Box-Cox Total Anxiety Level Distribution")
+
+qqnorm(cov_df$box_cox_anxiety_level, main = "Q-Q Plot of Box-Cox Total Anxiety Level")
+qqline(cov_df$box_cox_anxiety_level, col = "red")
+
+
+# Shapiro-Wilk Test
+print(shapiro.test(cov_df$box_cox_anxiety_level))
+
+# DJ
+```
+After our Box-Cox transformation, we see that our p-value of the Shapiro-Wilk Test is still not greater than 0.05. However, after our Box-Cox transformation, the p-value is much closer to 0.05 than our initial p-value. Therefore, since the p-value is closer to 0.05, we should use a Box-Cox transformation on our response variable for both our training and our test data sets.
+```{r 26}
+orig_shapiro = shapiro.test(cov_df$total_anxiety_level)
+bc_shapiro = shapiro.test(cov_df$box_cox_anxiety_level)
+
+orig_p_val = orig_shapiro$p.value
+bc_p_val = bc_shapiro$p.value
+
+print(paste("Original p-value:", orig_p_val))
+print(paste("Box-Cox transformed p-value:", bc_p_val))
+
+if (bc_p_val > orig_p_val) {
+  print("Yes, p-value after Box-Cox transformation is greater than original p-value")
+} else {
+  print("No, p-value after Box-Cox transformation is not greater than original p-value")
+}
+
+# Now, let us Box-Cox transform our response variable in our training and test data
+# Training
+range(train_df$total_anxiety_level)
+# 0 to 500
+train_df$total_anxiety_level_shift <- train_df$total_anxiety_level - min(train_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = train_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# 1.1 again
+train_df$box_cox_anxiety_level <- boxcox_transform(train_df$total_anxiety_level_shift, lambda_opt)
+
+# Now, let us remove total_anxiety_level and total_anxiety_level_shift from train_df then rename the box_cox_anxiety_level to total_anxiety_level. Let us also round to the nearest whole number
+train_df <- train_df %>%
+  dplyr::select(-total_anxiety_level, -total_anxiety_level_shift) %>%
+  dplyr::rename(total_anxiety_level = box_cox_anxiety_level) %>%
+  dplyr::mutate(total_anxiety_level = round(total_anxiety_level))
+
+# Test Data
+range(test_df$total_anxiety_level)
+# 0 to 500
+test_df$total_anxiety_level_shift <- test_df$total_anxiety_level - min(test_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = test_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# 1.1 again
+test_df$box_cox_anxiety_level <- boxcox_transform(test_df$total_anxiety_level_shift, lambda_opt)
+
+# Now, let us remove total_anxiety_level and total_anxiety_level_shift from train_df then rename the box_cox_anxiety_level to total_anxiety_level. Let us also round to the nearest whole number
+test_df <- test_df %>%
+  dplyr::select(-total_anxiety_level, -total_anxiety_level_shift) %>%
+  dplyr::rename(total_anxiety_level = box_cox_anxiety_level) %>%
+  dplyr::mutate(total_anxiety_level = round(total_anxiety_level))
+
+# DJ
+```
+
+Now that we have properly transformed our response variable, we can now center and scale our predictors to prepare for PCA.
+
+# Center and Scale Predictors
+
+# Throwaway Code
 Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
 ```{r 9}
 #this will remove replace all of the potential outliers with N/a values
