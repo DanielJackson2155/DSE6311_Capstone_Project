@@ -23,6 +23,7 @@ library(corrplot)
 library(car)
 library(psych)
 library(pls)
+library(caret)
 
 # all
 ```
@@ -230,20 +231,10 @@ Upon looking at the data, we found that there are a lot of N/A's in "ethnoracial
 
 Just a side note, randomForest could be used to fill in missing quantitative values too, but since the two variables we are using KNN imputation for are qualitative, we do not need to do randomForest.
 
-We wanted to use KNN to fill in the missing values.
-```{r 8}
-#Using K-nearest-neighbors to fill in the missing values
-cov_df <- knnImputation(cov_df, k = 3)
-#checking to see if there are any more N/a values
-colSums(is.na(cov_df))
-unique(cov_df$age)
-unique(cov_df$ethnoracial_group)
-
-# NT
-```
+We wanted to use KNN to fill in the missing values. We will do this after we split our trianing and test data.
 
 Looking at the histograms above, there seems to be a few variables that have outliers, we will use box plots to further visualize them differently. The variables identified are "age," "hrs_outdoor," "hrs_exercise," and "bmi."
-```{r 9}
+```{r 8}
 # Making Boxplots for each of the potential variables with outliers.
 boxplot(cov_df$age,
         ylab = "age")
@@ -262,7 +253,7 @@ boxplot.stats(cov_df$bmi)$out
 # NT
 ```
 Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
-```{r 10}
+```{r 9}
 #this will remove replace all of the potential outliers with N/a values
 for (x in c("bmi"))
 {
@@ -278,7 +269,7 @@ colSums(is.na(cov_df))
 ```
 
 I thought there there were a few observations from the qualitative variables that I would consider as outliers and wanted to get rid of them in the case that they will affect our models in a bad way.
-```{r 11}
+```{r 10}
 #creating a cut off for hours of exercise and then subsetting those that aren't wanted from the data frame
 threshold_hrs_exercise <- 9 
 cov_df <- subset(cov_df, hrs_exercise < threshold_hrs_exercise)
@@ -290,7 +281,7 @@ cov_df <- filter(cov_df, age %in% ages_to_keep)
 ```
 
 We have 28 variables in our dataset so far and 25 of them are numerical. There is a chance our variables might be highly correlated to each other which could create issues with our models. To prevent that lets create a correlation matrix and then plot of all our numerical variables to investigate. We can choose a range to be able to see the highly correlated values 
-```{r 12}
+```{r 11}
 
 # Let's select numerical variables again since we made a few edits since our last histogram
 numeric_vars <- sapply(cov_df, is.numeric)
@@ -335,7 +326,7 @@ corrplot(cor_matrix_range, method = "color", type = "full",
 
 Another test for multicollinearity is a VIF Variance Inflation Factor. This is a good measure of the amount of multicollinearity in a set of multiple regression variables. When multicollinearity exists it undermines the statistical significance of an independent variable, increases model complexity and can cause overfitting. It will also inflate the variance (standard error) of coefficient estimates
 
-```{r 13}
+```{r 12}
 # lets fit a linear model with all our numerical variables
 multi_col_model <- lm(total_anxiety_level ~ ., data = num_data)
 
@@ -349,7 +340,7 @@ print(vif_values)
 ```
 
 Let us take the average of class_dad and class_mom variables and create new variable called class_family. We will round the average up to the nearest whole number and remove the class_dad and class_mom variables after
-```{r 14}
+```{r 13}
 cov_df <- cov_df %>%
   mutate(class_family = (class_mom + class_dad)/2)
 
@@ -363,7 +354,7 @@ cov_df <- cov_df %>%
 ```
 
 We also want to remove the covid_too_much_time predictor.
-```{r 15}
+```{r 14}
 cov_df <- cov_df[, -which(names(cov_df) =="covid_too_much_time")]
 
 dim(cov_df)
@@ -374,7 +365,7 @@ dim(cov_df)
 ```
 
 Categorical Variables summary that include Frequencies and percentages.
-```{r 16}
+```{r 15}
 #Using the tabyl function from Janitor we can create tables that have the frequencies and %'s
 cov_df %>%
   tabyl(age) %>%
@@ -389,7 +380,7 @@ cov_df %>%
 #NT
 ```
 Summary of the continuous variables' mean, median, standard deviation (SD), skewness, and kurtosis
-```{r 17}
+```{r 16}
 #We are using our numerical variables that we used for both the histograms, and multicollinearity
 cont_vars <- names(Filter(is.numeric, cov_df))
 
@@ -412,23 +403,61 @@ for (cont_vars in cont_vars) {
 ```
 
 # Training and Test Data
-Let us split our data set into test and training data. 70% of our data will be the training data and 30% will be our test data. The trained data will be used to train our models while the test data will be used to test the accuracy of the trained model's predictions.
+Let us split our data set into training and test data. We will use R code below to select optimal data split for our training and test data.
+```{r 17}
+calcSplitRatio <- function(p = NA, df) {
+  ## @p  = the number of parameters. by default, if none are provided, the number of columns (predictors) in the dataset are used
+  ## @df = the dataframe that will be used for the analysis
+  
+  ## If the number of parameters isn't supplied, set it to the number of features minus 1 for the target
+  if(is.na(p)) {
+    p <- ncol(df) -1   ## COMMENT HERE
+  }
+  
+  ## Calculate the ideal number of testing set
+  test_N <- (1/sqrt(p))*nrow(df)
+  ## Turn that into a testing proportion
+  test_prop <- round((1/sqrt(p))*nrow(df)/nrow(df), 2)
+  ## And find the training proportion
+  train_prop <- 1-test_prop
+  
+  ## Tell us the results!
+  print(paste0("The ideal split ratio is ", train_prop, ":", test_prop, " training:testing"))
+  
+  ## Return the size of the training set
+  return(train_prop)
+}
+
+calcSplitRatio(26, cov_df)
+# Ideal training split ratio is 0.8 for training and 0.2 for testing.
+```
+
+Use value from train_prop for p value in createDataPartition 
 ```{r 18}
 set.seed(123) # set.seed(123) for reproducibility
-train <-sample(nrow(cov_df), 0.7 * nrow(cov_df))
-train_df = cov_df[train, ]
-test_df = cov_df[-train, ]
+partition <- createDataPartition(cov_df$total_anxiety_level, p = 0.8, list = FALSE)
+train_df <- cov_df[partition,]
+test_df <- cov_df[-partition,]
 
 dim(train_df)
-# 1688 observations
+# 1723 observations
 
 dim(test_df)
-# 724
+# 427
 
 # DJ
 ```
 
-We are left with our response variable: total_anxiety_level.
-We are also left with 25 predictors.
+Now that the training and test data has been determined, we now will use KNN to fill in the missing values for ethnoracial_group and age predictors.
+```{r 19}
+#Using K-nearest-neighbors to fill in the missing values
+cov_df <- knnImputation(cov_df, k = 3)
+#checking to see if there are any more N/a values
+colSums(is.na(cov_df))
+unique(cov_df$age)
+unique(cov_df$ethnoracial_group)
+
+# NT
+```
 
 # Model Building
