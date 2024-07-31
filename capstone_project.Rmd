@@ -451,11 +451,16 @@ dim(test_df)
 Now that the training and test data has been determined, we now will use KNN to fill in the missing values for ethnoracial_group and age predictors.
 ```{r 19}
 #Using K-nearest-neighbors to fill in the missing values
-cov_df <- knnImputation(cov_df, k = 3)
+train_df <- knnImputation(train_df, k = 3)
+test_df <- knnImputation(test_df, k =3)
+
 #checking to see if there are any more N/a values
-colSums(is.na(cov_df))
-unique(cov_df$age)
-unique(cov_df$ethnoracial_group)
+colSums(is.na(train_df))
+colSums(is.na(test_df))
+unique(train_df$age)
+unique(test_df$age)
+unique(train_df$ethnoracial_group)
+unique(test_df$ethnoracial_group)
 
 # NT
 ```
