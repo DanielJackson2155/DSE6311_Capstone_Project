@@ -118,7 +118,7 @@ cov_df <- cov_df %>%
 
 # Now, let us remove those variables added together from the data set
 cov_df <- cov_df %>%
-  select(-any_of(features_round_up))
+  dplyr::select(-any_of(features_round_up))
 
 # Find average and median value of total_anxiety_level
 avg_tot_anx_lev <- mean(cov_df$total_anxiety_level)
@@ -267,7 +267,7 @@ cor_matrix <- cor(num_data, use = "complete.obs")
 print(cor_matrix)
 # creating the correlation plot
 # lets also make necessary adjustments to make the text smaller 
-corrplot(cor_matrix, method = "color", type = "full", 
+corrplot::corrplot(cor_matrix, method = "color", type = "full", 
          tl.col = "black", tl.srt = 45, tl.cex = 0.8, 
          title = "Correlation Plot of Numerical Variables", mar = c(0, 0, 1, 0))
 
@@ -290,7 +290,7 @@ print(fil_cor_matrix_range_df)
 
 
 # lets repeat the plotting process
-corrplot(cor_matrix_range, method = "color", type = "full", 
+corrplot::corrplot(cor_matrix_range, method = "color", type = "full", 
          tl.col = "black", tl.srt = 45, tl.cex = 0.8, 
          na.label = " ", 
          title = "Correlation Plot of Numerical Variables (0.7 < |r| < 0.99)", mar = c(0, 0, 1, 0))
@@ -321,8 +321,8 @@ cov_df <- cov_df %>%
 # Let us round up class_family variable to make it whole and also remove class_dad and class_mom variables
 cov_df <- cov_df %>%
   mutate_at(vars(class_family), ~ ceiling(.)) %>%
-  select(-class_mom) %>%
-  select(-class_dad)
+  dplyr::select(-class_mom) %>%
+  dplyr::select(-class_dad)
 
 # DJ
 ```
@@ -466,7 +466,19 @@ For both age and source, we will conduct a frequency encoding to avoid adding mo
 Below is the code to encode each of the three categorical variables in both the training and test set.
 ```{r 21}
 # age variable code by NT
+#training data
+train_df <- train_df %>%
+  group_by(age) %>%
+  mutate(age_frequency = n()) %>%
+  ungroup() %>%
+  dplyr::select(-age)
 
+#test data
+test_df <- test_df %>%
+  group_by(age) %>%
+  mutate(age_frequency = n()) %>%
+  ungroup() %>%
+  dplyr::select(-age)
 
 # source variable frequency encoding by DJ
 # training data
@@ -474,14 +486,14 @@ train_df <- train_df %>%
   group_by(source) %>%
   mutate(source_frequency = n()) %>%
   ungroup() %>%
-  select(-source)
+  dplyr::select(-source)
 
 # test data
 test_df <- test_df %>%
   group_by(source) %>%
   mutate(source_frequency = n()) %>%
   ungroup() %>%
-  select(-source)
+  dplyr::select(-source)
 
 
 # ethnoracial_group variable one-hot encoding
@@ -497,7 +509,7 @@ encoded_ethno_racial_df <- encoded_ethno_racial_df %>%
 train_df <- cbind(train_df, encoded_ethno_racial_df)
 # Remove ethno_racial variable
 train_df <- train_df %>%
-  select(-ethnoracial_group)
+  dplyr::select(-ethnoracial_group)
 
 # test data
 dummy_vars = dummyVars(~ ethnoracial_group, 
@@ -511,16 +523,16 @@ encoded_ethno_racial_df <- encoded_ethno_racial_df %>%
 test_df <- cbind(test_df, encoded_ethno_racial_df)
 # Remove ethno_racial variable
 test_df <- test_df %>%
-  select(-ethnoracial_group)
+  dplyr::select(-ethnoracial_group)
 
 # Now, for visual purposes in our data sets, let us move our response variable to the far right of all of our predictors.
 train_df <- train_df %>%
-  select(-total_anxiety_level, total_anxiety_level)
+  dplyr::select(-total_anxiety_level, total_anxiety_level)
 # row names changed from 1 to x1 and so on. Let's reset that.
 rownames(train_df) <- NULL
 
 test_df <- test_df %>%
-  select(-total_anxiety_level, total_anxiety_level)
+  dplyr::select(-total_anxiety_level, total_anxiety_level)
 # row names changed from 1 to x1 and so on. Let's reset that.
 rownames(test_df) <- NULL
 
@@ -707,6 +719,52 @@ test_df <- test_df %>%
 Now that we have properly transformed our response variable, we can now center and scale our predictors to prepare for PCA.
 
 # Center and Scale Predictors
+
+```{r 27}
+#training data
+
+#storing the response variable into a vector (total_anxiety_level)
+anx_lev_train <- train_df$total_anxiety_level
+
+#creating a scaled_train_df without response variable
+scaled_train_df <- train_df[,-29]
+
+#centering and scaling using standard deviation of 2
+scaled_train_df <- scale(scaled_train_df, center = TRUE, scale = TRUE)
+apply(scaled_train_df, 2, sd)
+
+#adding response variable back in scaled df
+scaled_train_df <- cbind(scaled_train_df, anx_lev_train)
+
+#test data
+
+#storing the response variable into a vector (total_anxiety_level)
+anx_lev_test <- test_df$total_anxiety_level
+
+#creating a scaled_test_df without response variable
+scaled_test_df <- test_df[,-29]
+
+#centering and scaling using standard deviation of 2
+scaled_test_df <- scale(scaled_test_df, center = TRUE, scale = TRUE)
+apply(scaled_test_df, 2, sd)
+
+#adding response variable back in scaled df
+scaled_test_df <- cbind(scaled_test_df, anx_lev_test)
+
+# NT
+```
+#PCA (principal component analysis) data reduction
+
+```{r 28}
+#performing 
+pca_test <- prcomp(scaled_test_df)
+str(pca_test)
+
+library(factoextra)
+fviz_eig(pca_test, addlabels = TRUE, ylim = c(0,100))
+
+#NT
+```
 
 # Throwaway Code
 Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
