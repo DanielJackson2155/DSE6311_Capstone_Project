@@ -752,7 +752,7 @@ scaled_test_df <- cbind(scaled_test_df, anx_lev_test)
 
 # NT
 ```
-#PCA (principal component analysis) data reduction
+# PCA (principal component analysis) data reduction
 ```{r 27}
 # Need to convert matrix to data frame for training and test data
 scaled_train_df = as.data.frame(scaled_train_df)
@@ -799,7 +799,7 @@ Now we can start fitting our first model!
 
 # Throwaway Code
 Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
-```{r 9}
+```{r throw 1}
 #this will remove replace all of the potential outliers with N/a values
 for (x in c("bmi"))
 {
@@ -815,7 +815,7 @@ colSums(is.na(cov_df))
 ```
 
 I thought there there were a few observations from the qualitative variables that I would consider as outliers and wanted to get rid of them in the case that they will affect our models in a bad way.
-```{r 10}
+```{r throw 2}
 #creating a cut off for hours of exercise and then subsetting those that aren't wanted from the data frame
 threshold_hrs_exercise <- 9 
 cov_df <- subset(cov_df, hrs_exercise < threshold_hrs_exercise)
@@ -826,7 +826,7 @@ cov_df <- filter(cov_df, age %in% ages_to_keep)
 #NT
 ```
 
-```{r 28}
+```{r throw 3}
 #performing 
 pca_test <- prcomp(scaled_test_df)
 str(pca_test)
