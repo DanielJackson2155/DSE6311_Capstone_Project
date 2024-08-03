@@ -836,3 +836,93 @@ fviz_eig(pca_test, addlabels = TRUE, ylim = c(0,100))
 
 #NT
 ```
+
+
+
+#Intial model building 
+For our first model, we are going to build an ordinal regression model. For that we need to first turn our reponse variable into ordinal. 
+
+Firsts lets see the spread of of our variable. 
+
+```{r}
+summary(train_df$total_anxiety_level)
+
+#NP
+```
+```{r}
+# Its better to visualize using a histogram. Lets plot a basic one. 
+
+hist(train_df$total_anxiety_level,
+     main = "Histogram of Total Anxiety Level",
+     xlab = "Total Anxiety Level",
+     ylab = "Frequency",
+     col = "skyblue",
+     border = "black",
+     breaks = 30)  
+#NP
+```
+To turn total_anixety_level we need to first break it into intervals and then create the ordinal variable. 
+
+```{r}
+
+#the breaks will be from 0-100, 101-199, 200-299 and so forth,
+
+breaks <- c(-Inf, 100, 199, 299, 399, 499, 599, 699, 799, Inf)
+labels <- 1:9
+
+# And now lets put them into the variable 
+train_df$or_total_anxiety_level <- cut(train_df$total_anxiety_level,
+                                        breaks = breaks,
+                                        labels = labels,
+                                        right = TRUE)
+
+#this code shows weather or not it works
+head(train_df$or_total_anxiety_level)
+#NP
+```
+```{r}
+# now lets do the same with our test variable
+breaks <- c(-Inf, 100, 199, 299, 399, 499, 599, 699, 799, Inf)
+labels <- 1:9
+
+test_df$or_total_anxiety_level <- cut(test_df$total_anxiety_level,
+                                        breaks = breaks,
+                                        labels = labels,
+                                        right = TRUE)
+
+head(test_df$or_total_anxiety_level)
+#NP
+```
+```{r}
+#this code is redundant but it ensures that both of the data sets variables are ordinal 
+
+train_df$or_total_anxiety_level <- factor(train_df$or_total_anxiety_level,
+                                          levels = 1:9,
+                                          ordered = TRUE)
+
+
+train_df$or_total_anxiety_level <- factor(test_df$or_total_anxiety_level,
+                                          levels = 1:9,
+                                          ordered = TRUE)
+#NP
+```
+
+```{r}
+#now lets see the plot for the distribution of the variable 
+
+ggplot(train_df, aes(x = or_total_anxiety_level)) +
+  geom_bar(fill = "steelblue") +
+  labs(title = "Distribution of Ordinal Anxiety Levels",
+       x = "Ordinal Anxiety Level",
+       y = "Count") +
+  theme_minimal()
+#NP
+```
+
+
+```{r}
+#and now some test stats
+table(train_df$or_total_anxiety_level)
+summary(train_df$or_total_anxiety_level)
+#NP
+```
