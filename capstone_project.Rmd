@@ -25,6 +25,7 @@ library(psych)
 library(pls)
 library(caret)
 library(MASS)
+library(stats)
 
 # all
 ```
@@ -256,7 +257,6 @@ boxplot.stats(cov_df$bmi)$out
 
 We have 28 variables in our dataset so far and 25 of them are numerical. There is a chance our variables might be highly correlated to each other which could create issues with our models. To prevent that lets create a correlation matrix and then plot of all our numerical variables to investigate. We can choose a range to be able to see the highly correlated values 
 ```{r 9}
-
 # Let's select numerical variables again since we made a few edits since our last histogram
 numeric_vars <- sapply(cov_df, is.numeric)
 num_data <- cov_df[, numeric_vars]
@@ -340,7 +340,7 @@ dim(cov_df)
 
 Categorical Variables summary that include Frequencies and percentages.
 ```{r 13}
-#Using the tabyl function from Janitor we can create tables that have the frequencies and %'s
+# Using the tabyl function from Janitor we can create tables that have the frequencies and %'s
 cov_df %>%
   tabyl(age) %>%
   adorn_pct_formatting()
@@ -539,6 +539,7 @@ rownames(test_df) <- NULL
 
 # DJ/NT
 ```
+
 ## Response Variable Transformation
 Before we center and scale our predictors to prepare for our PCA. We want to revisit the distribution of our response variable total_anxiety_level. We will look at both a histogram and Q-Q plot to see if we need to transform our response variable or not. We will also conduct the Shapiro-Wilk Test to see if our response variable has a normal distribution or not. If the p-value, of the test is less than 0.05, then we reject the null hypothesis that the distribution is normal.
 ```{r 20}
@@ -787,30 +788,91 @@ Looks like we have a few elbow that we can point to in our scree plot. We see th
 ```{r 30}
 pca_scores <- pca_train$x[, 1:19]
 # Combine the reduced principal components with the response variable
-reduced_train_df <- cbind(pca_scores, anx_lev_train)
+reduced_train_df <- cbind(pca_scores, train_resp)
 # Convert to data frame
 reduced_train_df = as.data.frame(reduced_train_df)
 
 # DJ
 ```
 
+Now let us do the same for the test model.
+```{r 31}
+# Separate predictors and response
+test_pred <- scaled_test_df %>% 
+  dplyr::select(-anx_lev_test)  # Exclude response variable
+test_resp <- scaled_test_df$anx_lev_test  # Extract response variable
+
+# Perform PCA
+pca_test <- prcomp(test_pred, center = FALSE, scale. = FALSE)
+# predictors already trained and scaled
+
+# View PCA summary
+summary(pca_test)
+
+# Look at scree plot
+eigenvalues <- pca_test$sdev^2
+
+# Compute the proportion of variance explained by each component
+variance_explained <- eigenvalues / sum(eigenvalues)
+
+# Plot manually
+plot(variance_explained, type = "b", main = "Scree Plot", xlab = "Principal Component", ylab = "Proportion of Variance Explained")
+
+pca_scores_test <- pca_test$x[, 1:19]
+# Combine the reduced principal components with the response variable
+reduced_test_df <- cbind(pca_scores_test, test_resp)
+# Convert to data frame
+reduced_test_df = as.data.frame(reduced_test_df)
+```
+
 Now we can start fitting our first model!
 
-#Intial model building 
-For our first model, we are going to build an ordinal regression model. For that we need to first turn our reponse variable into ordinal. 
+# Intial model building 
+## Multiple Linear Regression Model
+Let us first just try a simple linear regression model using backwards selection. We will start by fitting a model on the reduced training data frame. For any predictor that has a p-value greater than 0.05, we will remove that predictor
+```{r 32}
+cov_lm = lm(train_resp ~., reduced_train_df)
+summary(cov_lm)
+```
+
+Let us remove PC10, PC11, PC12, PC13, PC14, PC15, PC16, PC18, and PC19.
+```{r 33}
+feats_to_remove = c("PC10", "PC11", "PC12", "PC13", "PC14", "PC15", "PC16", "PC18", "PC19")
+reduced_train_df_1 = reduced_train_df %>%
+  dplyr::select(-feats_to_remove)
+cov_lm = lm(train_resp ~., reduced_train_df_1)
+summary(cov_lm)
+```
+Now, all of the p-values for each principal component are less than 0.05. Let us test the mean squared error rate on the training data itself.
+```{r 34}
+pred_train = predict(cov_lm, newdata = reduced_train_df_1)
+mean((pred_train - reduced_train_df_1$train_resp)^2)
+```
+
+Now try on test data
+```{r 35}
+pred_test = predict(cov_lm, newdata = reduced_test_df)
+mean((pred_test - reduced_test_df$test_resp)^2)
+```
+
+We see a very high mean squared error rate for both the training and test mean squared error rates. 
+
+
+
+## Ordinal Logistic Regression
+For our first model, we are going to build an ordinal logistic regression model. For that we need to first turn our response variable into ordinal. 
 
 Firsts lets see the spread of of our variable. 
-
-```{r}
-summary(train_df$total_anxiety_level)
+```{r 36}
+summary(reduced_train_df$train_resp)
 
 #NP
 ```
 
-```{r}
+```{r 37}
 # Its better to visualize using a histogram. Lets plot a basic one. 
 
-hist(train_df$total_anxiety_level,
+hist(reduced_train_df$train_resp,
      main = "Histogram of Total Anxiety Level",
      xlab = "Total Anxiety Level",
      ylab = "Frequency",
@@ -821,54 +883,54 @@ hist(train_df$total_anxiety_level,
 ```
 To turn total_anixety_level we need to first break it into intervals and then create the ordinal variable. 
 
-```{r}
-
-#the breaks will be from 0-100, 101-199, 200-299 and so forth,
+```{r 38}
+# the breaks will be from 0-100, 101-199, 200-299 and so forth,
 
 breaks <- c(-Inf, 100, 199, 299, 399, 499, 599, 699, 799, Inf)
 labels <- 1:9
 
 # And now lets put them into the variable 
-train_df$or_total_anxiety_level <- cut(train_df$total_anxiety_level,
+reduced_train_df$or_train_resp<- cut(reduced_train_df$train_resp,
                                         breaks = breaks,
                                         labels = labels,
                                         right = TRUE)
 
 #this code shows weather or not it works
-head(train_df$or_total_anxiety_level)
+head(reduced_train_df$or_train_resp)
 #NP
 ```
-```{r}
+
+```{r 39}
 # now lets do the same with our test variable
 breaks <- c(-Inf, 100, 199, 299, 399, 499, 599, 699, 799, Inf)
 labels <- 1:9
 
-test_df$or_total_anxiety_level <- cut(test_df$total_anxiety_level,
+reduced_test_df$or_test_resp <- cut(reduced_test_df$test_resp,
                                         breaks = breaks,
                                         labels = labels,
                                         right = TRUE)
-
-head(test_df$or_total_anxiety_level)
+head(reduced_test_df$or_test_resp)
 #NP
 ```
-```{r}
+
+```{r 40}
 #this code is redundant but it ensures that both of the data sets variables are ordinal 
 
-train_df$or_total_anxiety_level <- factor(train_df$or_total_anxiety_level,
+reduced_train_df$or_train_resp <- factor(reduced_train_df$or_train_resp,
                                           levels = 1:9,
                                           ordered = TRUE)
 
 
-train_df$or_total_anxiety_level <- factor(test_df$or_total_anxiety_level,
+reduced_test_df$or_test_resp <- factor(reduced_test_df$or_test_response,
                                           levels = 1:9,
                                           ordered = TRUE)
 #NP
 ```
 
-```{r}
+```{r 41}
 #now lets see the plot for the distribution of the variable 
 
-ggplot(train_df, aes(x = or_total_anxiety_level)) +
+ggplot(reduced_train_df, aes(x = or_train_resp)) +
   geom_bar(fill = "steelblue") +
   labs(title = "Distribution of Ordinal Anxiety Levels",
        x = "Ordinal Anxiety Level",
@@ -878,11 +940,21 @@ ggplot(train_df, aes(x = or_total_anxiety_level)) +
 ```
 
 
-```{r}
+```{r 42}
 #and now some test stats
-table(train_df$or_total_anxiety_level)
-summary(train_df$or_total_anxiety_level)
+table(reduced_train_df$or_train_resp)
+table(reduced_test_df$or_test_resp)
+
+summary(reduced_train_df$or_train_resp)
+summary(reduced_test_df$or_test_resp)
+
 #NP
+```
+
+Now let us fit an ordinal logistic regression model
+```{r 43}
+cov_or <- polr(or_train_resp ~. -train_resp, data = reduced_train_df, Hess = TRUE)
+summary(cov_or)
 ```
 
 # Throwaway Code
