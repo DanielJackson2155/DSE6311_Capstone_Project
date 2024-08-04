@@ -796,10 +796,6 @@ reduced_train_df = as.data.frame(reduced_train_df)
 
 Now we can start fitting our first model!
 
-
-
-
-
 #Intial model building 
 For our first model, we are going to build an ordinal regression model. For that we need to first turn our reponse variable into ordinal. 
 
