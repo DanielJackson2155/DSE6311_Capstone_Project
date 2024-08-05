@@ -26,6 +26,7 @@ library(pls)
 library(caret)
 library(MASS)
 library(stats)
+library(glmnet)
 
 # all
 ```
@@ -355,7 +356,7 @@ cov_df %>%
 ```
 Summary of the continuous variables' mean, median, standard deviation (SD), skewness, and kurtosis
 ```{r 14}
-#We are using our numerical variables that we used for both the histograms, and multicollinearity
+# We are using our numerical variables that we used for both the histograms, and multicollinearity
 cont_vars <- names(Filter(is.numeric, cov_df))
 
 #creating a function that will summarize the numerical variables for the statistics that we want
@@ -823,6 +824,8 @@ pca_scores_test <- pca_test$x[, 1:19]
 reduced_test_df <- cbind(pca_scores_test, test_resp)
 # Convert to data frame
 reduced_test_df = as.data.frame(reduced_test_df)
+
+# DJ
 ```
 
 Now we can start fitting our first model!
@@ -833,6 +836,8 @@ Let us first just try a simple linear regression model using backwards selection
 ```{r 32}
 cov_lm = lm(train_resp ~., reduced_train_df)
 summary(cov_lm)
+
+# DJ
 ```
 
 Let us remove PC10, PC11, PC12, PC13, PC14, PC15, PC16, PC18, and PC19.
@@ -842,21 +847,52 @@ reduced_train_df_1 = reduced_train_df %>%
   dplyr::select(-feats_to_remove)
 cov_lm = lm(train_resp ~., reduced_train_df_1)
 summary(cov_lm)
+
+# DJ
 ```
 Now, all of the p-values for each principal component are less than 0.05. Let us test the mean squared error rate on the training data itself.
 ```{r 34}
 pred_train = predict(cov_lm, newdata = reduced_train_df_1)
 mean((pred_train - reduced_train_df_1$train_resp)^2)
+
+# DJ
 ```
 
 Now try on test data
 ```{r 35}
 pred_test = predict(cov_lm, newdata = reduced_test_df)
 mean((pred_test - reduced_test_df$test_resp)^2)
+
+# DJ
 ```
 
 We see a very high mean squared error rate for both the training and test mean squared error rates. 
 
+## Lasso Regression
+```{r 36}
+library(glmnet)
+# Perform lasso regression
+set.seed(123)
+train_matrix = model.matrix(train_resp~., reduced_train_df)
+test_matrix = model.matrix(test_resp~., reduced_test_df)
+# Select lambda using cross-validation
+cv_lam = cv.glmnet(train_matrix, reduced_train_df$train_resp, alpha = 1)
+best_lam = cv_lam$lambda.min
+best_lam
+# Lambda chosen by cross-validation is 1.074
+# Now we fit lasso regression model and predict train data
+cov_lasso = glmnet(train_matrix, reduced_train_df$train_resp, alpha = 1)
+pred_lasso = predict(cov_lasso, s = best_lam, newx = train_matrix)
+# Find training error:
+mean((pred_lasso - reduced_train_df$train_resp)^2)
+
+# Now we fit lasso regression model and predict test data
+pred_lasso = predict(cov_lasso, s = best_lam, newx = test_matrix)
+# Find training error:
+mean((pred_lasso - reduced_test_df$test_resp)^2)
+
+# DJ
+```
 
 
 ## Ordinal Logistic Regression
@@ -955,6 +991,8 @@ Now let us fit an ordinal logistic regression model
 ```{r 43}
 cov_or <- polr(or_train_resp ~. -train_resp, data = reduced_train_df, Hess = TRUE)
 summary(cov_or)
+
+# NP
 ```
 
 # Throwaway Code
@@ -995,4 +1033,47 @@ library(factoextra)
 fviz_eig(pca_test, addlabels = TRUE, ylim = c(0,100))
 
 #NT
+```
+
+## Regression Tree
+```{r}
+library(tree)
+cbm_tree = tree(train_resp ~ ., reduced_train_df)
+summary(cbm_tree)
+plot(cbm_tree)
+text(cbm_tree, pretty = 0)
+
+yhat = predict(cbm_tree, newdata = reduced_train_df)
+mean((yhat - reduced_train_df$train_resp)^2)
+
+yhat = predict(cbm_tree, newdata = reduced_test_df)
+mean((yhat - reduced_test_df$test_resp)^2)
+
+# DJ
+```
+
+## Lasso Regression
+```{r 36}
+library(glmnet)
+# Perform lasso regression
+set.seed(123)
+train_matrix = model.matrix(train_resp~., reduced_train_df)
+test_matrix = model.matrix(test_resp~., reduced_test_df)
+# Select lambda using cross-validation
+cv_lam = cv.glmnet(train_matrix, reduced_train_df$train_resp, alpha = 1)
+best_lam = cv_lam$lambda.min
+best_lam
+# Lambda chosen by cross-validation is 1.074
+# Now we fit lasso regression model and predict train data
+cov_lasso = glmnet(train_matrix, reduced_train_df$train_resp, alpha = 1)
+pred_lasso = predict(cov_lasso, s = best_lam, newx = train_matrix)
+# Find training error:
+mean((pred_lasso - reduced_train_df$train_resp)^2)
+
+# Now we fit lasso regression model and predict test data
+pred_lasso = predict(cov_lasso, s = best_lam, newx = test_matrix)
+# Find training error:
+mean((pred_lasso - reduced_test_df$test_resp)^2)
+
+# DJ
 ```
