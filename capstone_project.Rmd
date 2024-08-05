@@ -868,33 +868,6 @@ mean((pred_test - reduced_test_df$test_resp)^2)
 
 We see a very high mean squared error rate for both the training and test mean squared error rates. 
 
-## Lasso Regression
-```{r 36}
-library(glmnet)
-# Perform lasso regression
-set.seed(123)
-train_matrix = model.matrix(train_resp~., reduced_train_df)
-test_matrix = model.matrix(test_resp~., reduced_test_df)
-# Select lambda using cross-validation
-cv_lam = cv.glmnet(train_matrix, reduced_train_df$train_resp, alpha = 1)
-best_lam = cv_lam$lambda.min
-best_lam
-# Lambda chosen by cross-validation is 1.074
-# Now we fit lasso regression model and predict train data
-cov_lasso = glmnet(train_matrix, reduced_train_df$train_resp, alpha = 1)
-pred_lasso = predict(cov_lasso, s = best_lam, newx = train_matrix)
-# Find training error:
-mean((pred_lasso - reduced_train_df$train_resp)^2)
-
-# Now we fit lasso regression model and predict test data
-pred_lasso = predict(cov_lasso, s = best_lam, newx = test_matrix)
-# Find training error:
-mean((pred_lasso - reduced_test_df$test_resp)^2)
-
-# DJ
-```
-
-
 ## Ordinal Logistic Regression
 For our first model, we are going to build an ordinal logistic regression model. For that we need to first turn our response variable into ordinal. 
 
