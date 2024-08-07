@@ -27,7 +27,10 @@ library(caret)
 library(MASS)
 library(stats)
 library(glmnet)
-
+library(keras)
+library(tensorflow)
+library(pROC)
+library(tree)
 # all
 ```
 
@@ -63,7 +66,7 @@ We also will remove the Classification and Classification_High variable. We will
 Let us also remove the zip code variable. There is 601 NA values and we are not too worried about zip code as we know what college each student is attending.
 We can also remove the Source_NCSU variable as our Source variable tells us what school each student attends.
 Let us also remove the z-scores of students bad mood and lost time for our analysis.
-```{r 3}
+```{r 2}
 cov_df <- cov_df[, -which(names(cov_df) =="Class_Self_group")]
 cov_df <- cov_df[, -which(names(cov_df) =="Class_Mom_group")]
 cov_df <- cov_df[, -which(names(cov_df) =="Class_Dad_group")]
@@ -107,7 +110,7 @@ dim(cov_df)
 
 
 Now let us merge COVID_Afraid, COVID_Irritable, COVID_Guilty, COVID_Sad, COVID_Preoccupied and COVID_Stressed into one response variable called "total_anxiety_level". Before we do that, let us round each observation in each feature to nearest whole number.
-```{r 4}
+```{r 3}
 # Which features do we want to round up: COVID_Afraid, COVID_Irritable, COVID_Guilty, COVID_Sad, COVID_Preoccupied and COVID_Stressed
 features_round_up <- c("COVID_Afraid", "COVID_Irritable", "COVID_Guilty", "COVID_Sad", "COVID_Preoccupied", "COVID_Stressed")
 cov_df <- cov_df %>%
@@ -136,7 +139,7 @@ dim(cov_df)
 ```
 
 Now, let us round any numeric value to then nearest whole number for ease of analysis.
-```{r 5}
+```{r 4}
 cov_df <- cov_df %>%
   mutate_if(is.numeric, function(x) round(x))
 
@@ -163,7 +166,7 @@ colSums(is.na(cov_df))
 
 Next, we need to clean up our features and convert them to snake case for ease of coding/analysis. Then need to decide how we want to handle any remaining NA values.
 Please Install the Janitor Package if you haven't already, it allows for snake casing all the variables much easier
-```{r 6}
+```{r 5}
 #using the Janitor Package for snake casing each var
 cov_df <- cov_df %>%
   clean_names(case = "snake")
@@ -178,7 +181,7 @@ Now the variables have levels.
 
 We also have continuous variables which can be used to create histograms 
 The categorical variables can be used to create bar plots
-```{r 7}
+```{r 6}
 # Convert character variables and integers to factors w/ levels
 cov_df <- cov_df %>% 
   mutate_if(is.character, as.factor)
@@ -237,7 +240,7 @@ Just a side note, randomForest could be used to fill in missing quantitative val
 We wanted to use KNN to fill in the missing values. We will do this after we split our trianing and test data.
 
 Looking at the histograms above, there seems to be a few variables that have outliers, we will use box plots to further visualize them differently. The variables identified are "age," "hrs_outdoor," "hrs_exercise," and "bmi."
-```{r 8}
+```{r 7}
 # Making Boxplots for each of the potential variables with outliers.
 boxplot(cov_df$age,
         ylab = "age")
@@ -257,7 +260,7 @@ boxplot.stats(cov_df$bmi)$out
 ```
 
 We have 28 variables in our dataset so far and 25 of them are numerical. There is a chance our variables might be highly correlated to each other which could create issues with our models. To prevent that lets create a correlation matrix and then plot of all our numerical variables to investigate. We can choose a range to be able to see the highly correlated values 
-```{r 9}
+```{r 8}
 # Let's select numerical variables again since we made a few edits since our last histogram
 numeric_vars <- sapply(cov_df, is.numeric)
 num_data <- cov_df[, numeric_vars]
@@ -301,7 +304,7 @@ corrplot::corrplot(cor_matrix_range, method = "color", type = "full",
 
 Another test for multicollinearity is a VIF Variance Inflation Factor. This is a good measure of the amount of multicollinearity in a set of multiple regression variables. When multicollinearity exists it undermines the statistical significance of an independent variable, increases model complexity and can cause overfitting. It will also inflate the variance (standard error) of coefficient estimates
 
-```{r 10}
+```{r 9}
 # lets fit a linear model with all our numerical variables
 multi_col_model <- lm(total_anxiety_level ~ ., data = num_data)
 
@@ -315,7 +318,7 @@ print(vif_values)
 ```
 
 Let us take the average of class_dad and class_mom variables and create new variable called class_family. We will round the average up to the nearest whole number and remove the class_dad and class_mom variables after
-```{r 11}
+```{r 10}
 cov_df <- cov_df %>%
   mutate(class_family = (class_mom + class_dad)/2)
 
@@ -329,7 +332,7 @@ cov_df <- cov_df %>%
 ```
 
 We also want to remove the covid_too_much_time predictor.
-```{r 12}
+```{r 11}
 cov_df <- cov_df[, -which(names(cov_df) =="covid_too_much_time")]
 
 dim(cov_df)
@@ -340,7 +343,7 @@ dim(cov_df)
 ```
 
 Categorical Variables summary that include Frequencies and percentages.
-```{r 13}
+```{r 12}
 # Using the tabyl function from Janitor we can create tables that have the frequencies and %'s
 cov_df %>%
   tabyl(age) %>%
@@ -355,7 +358,7 @@ cov_df %>%
 #NT
 ```
 Summary of the continuous variables' mean, median, standard deviation (SD), skewness, and kurtosis
-```{r 14}
+```{r 13}
 # We are using our numerical variables that we used for both the histograms, and multicollinearity
 cont_vars <- names(Filter(is.numeric, cov_df))
 
@@ -379,7 +382,7 @@ for (cont_vars in cont_vars) {
 
 # Training and Test Data
 Let us split our data set into training and test data. We will use R code below to select optimal data split for our training and test data.
-```{r 15}
+```{r 14}
 calcSplitRatio <- function(p = NA, df) {
   ## @p  = the number of parameters. by default, if none are provided, the number of columns (predictors) in the dataset are used
   ## @df = the dataframe that will be used for the analysis
@@ -410,7 +413,7 @@ calcSplitRatio(26, cov_df)
 ```
 
 Use value from train_prop for p value in createDataPartition 
-```{r 16}
+```{r 15}
 set.seed(123) # set.seed(123) for reproducibility
 partition <- createDataPartition(cov_df$total_anxiety_level, p = 0.8, list = FALSE)
 train_df <- cov_df[partition,]
@@ -427,7 +430,7 @@ dim(test_df)
 
 # Imputations
 Now that the training and test data has been determined, we now will use KNN to fill in the missing values for ethnoracial_group and age predictors.
-```{r 17}
+```{r 16}
 #Using K-nearest-neighbors to fill in the missing values
 train_df <- knnImputation(train_df, k = 3)
 test_df <- knnImputation(test_df, k = 3)
@@ -442,184 +445,10 @@ unique(test_df$ethnoracial_group)
 
 # NT
 ```
-```{r}
-# Box-Cox transformation from MASS package
-# First, we need to ensure our response variable is positive before transforming.
-range(cov_df$total_anxiety_level)
-# 0 to 500 is our range.
-# Therefore, we need to shift data to ensure it is all positive. We will shift by 1.
-cov_df$total_anxiety_level_shift <- cov_df$total_anxiety_level - min(cov_df$total_anxiety_level) + 1
-# Now we will fit linear model only using the intercept and no predictors
-model <- lm(total_anxiety_level_shift ~ 1, data = cov_df)
-# use boxcox function from MASS
-bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
-# We want to find optial lambda for transformation
-lambda_opt <- bc$x[which.max(bc$y)]
-print(lambda_opt)
-# Optimal lambda is 1.1
-
-# Box-Cox transformation function
-boxcox_transform <- function(x, lambda) {
-  if (lambda == 0) {
-    return(log(x))  # special case for when lambda = 0
-  } else {
-    return((x^lambda - 1) / lambda)
-  }
-}
-
-# Now we apply transformation to total_anxiety_level_shift
-cov_df$box_cox_anxiety_level <- boxcox_transform(cov_df$total_anxiety_level_shift, lambda_opt)
-
-# histogram
-hist(cov_df$box_cox_anxiety_level,
-     xlab = "Box-Cox Total Anxiety Level",
-     main = "Box-Cox Total Anxiety Level Distribution")
-
-qqnorm(cov_df$box_cox_anxiety_level, main = "Q-Q Plot of Box-Cox Total Anxiety Level")
-qqline(cov_df$box_cox_anxiety_level, col = "red")
-
-
-# Shapiro-Wilk Test
-print(shapiro.test(cov_df$box_cox_anxiety_level))
-
-# Now, let us Box-Cox transform our response variable in our training and test data
-# Training
-range(train_df$total_anxiety_level)
-# 0 to 500
-train_df$total_anxiety_level_shift <- train_df$total_anxiety_level - min(train_df$total_anxiety_level) + 1
-# Now we will fit linear model only using the intercept and no predictors
-model <- lm(total_anxiety_level_shift ~ 1, data = train_df)
-# use boxcox function from MASS
-bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
-# We want to find optial lambda for transformation
-lambda_opt <- bc$x[which.max(bc$y)]
-print(lambda_opt)
-# 1.1 again
-train_df$box_cox_anxiety_level <- boxcox_transform(train_df$total_anxiety_level_shift, lambda_opt)
-
-# Now, let us remove total_anxiety_level and total_anxiety_level_shift from train_df then rename the box_cox_anxiety_level to total_anxiety_level. Let us also round to the nearest whole number
-train_df <- train_df %>%
-  dplyr::select(-total_anxiety_level, -total_anxiety_level_shift) %>%
-  dplyr::rename(total_anxiety_level = box_cox_anxiety_level) %>%
-  dplyr::mutate(total_anxiety_level = round(total_anxiety_level))
-
-# Test Data
-range(test_df$total_anxiety_level)
-# 0 to 500
-test_df$total_anxiety_level_shift <- test_df$total_anxiety_level - min(test_df$total_anxiety_level) + 1
-# Now we will fit linear model only using the intercept and no predictors
-model <- lm(total_anxiety_level_shift ~ 1, data = test_df)
-# use boxcox function from MASS
-bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
-# We want to find optial lambda for transformation
-lambda_opt <- bc$x[which.max(bc$y)]
-print(lambda_opt)
-# 1.1 again
-test_df$box_cox_anxiety_level <- boxcox_transform(test_df$total_anxiety_level_shift, lambda_opt)
-
-# Now, let us remove total_anxiety_level and total_anxiety_level_shift from train_df then rename the box_cox_anxiety_level to total_anxiety_level. Let us also round to the nearest whole number
-test_df <- test_df %>%
-  dplyr::select(-total_anxiety_level, -total_anxiety_level_shift) %>%
-  dplyr::rename(total_anxiety_level = box_cox_anxiety_level) %>%
-  dplyr::mutate(total_anxiety_level = round(total_anxiety_level))
-
-# DJ
-
-
-# Start of neural network model
-# Load necessary libraries
-library(dplyr)
-library(caret)
-library(keras)
-library(tensorflow)
-library(pROC)
-
-# here is the code for creating dummy variables for our categorical variable 
-onehot_encoder <- dummyVars(~ age + source + ethnoracial_group,
-                            train_df[, c("age", "source",
-                                         "ethnoracial_group")],
-                            levelsOnly = TRUE,
-                            fullRank = TRUE)
-
-onehot_enc_train <- predict(onehot_encoder,
-                            train_df[,c("age", "source",
-                                        "ethnoracial_group")])
-
-train_df <- cbind(train_df, onehot_enc_train)
-
-onehot_encoder <- dummyVars(~ age + source + ethnoracial_group,
-                            test_df[, c("age", "source",
-                                         "ethnoracial_group")],
-                            levelsOnly = TRUE,
-                            fullRank = TRUE)
-
-onehot_enc_test <- predict(onehot_encoder,
-                            test_df[,c("age", "source",
-                                        "ethnoracial_group")])
-
-test_df <- cbind(test_df, onehot_enc_test)
-
-cols_to_exclude <- c(22, 23, 24)
-
-test_df[, -(cols_to_exclude)] <- scale(test_df[, -c(cols_to_exclude)],
-                              center = apply(train_df[, -c(cols_to_exclude)], 2, mean),
-                              scale = apply(train_df[, -c(cols_to_exclude)], 2, sd))
-train_df[, -c(cols_to_exclude)] <- scale(train_df[, -c(cols_to_exclude)])
-
-training_features <- array(data = unlist(train_df[, -c(cols_to_exclude)]),
-                                         dim = c(nrow(train_df), 37))
-training_labels <- array(data = unlist(train_df[, 25]),
-                         dim = c(nrow(train_df)))
-
-test_features <- array(data = unlist(test_df[, -c(cols_to_exclude)]),
-                       dim = c(nrow(test_df), 37))
-test_labels <- array(data = unlist(test_df[, 25]),
-                     dim = c(nrow(test_df)))
-
-train_df <- train_df[, !names(train_df) %in% c ("age", "source", "ethnoracial_group")]
-test_df <- test_df[, !names(test_df) %in% c ("age", "source", "ethnoracial_group")]
-
-
-```
-
-```{r}
-set.seed(123)
-calcSplitRatio(37, train_df)
-# "The ideal split ratio is 0.84:0.16 training:testing"
-use_virtualenv("my_tf_workspace")
-
-model <- keras_model_sequential(list(
-  layer_dense(units = 75, activation = "relu"),
-  layer_dense(units = 50, activation = "relu"),
-  layer_dense(units = 25, activation = "relu"),
-  layer_dense(units = 1, activation = "linear")
-))
-compile(model,
-        optimizer = "rmsprop",
-        loss = "MeanSquaredLogarithmicError",
-        metrics = "MeanSquaredError")
-
-early_stopping <- callback_early_stopping(patience = 5)
-
-history <- fit(model, training_features, training_labels,
-               epochs = 50, batch_size = 512, validation_split = 0.16,
-               callbacks = list(early_stopping))
-plot(history)
-
-# Training Error Rate
-train_results = model %>%
-  evaluate(training_features, training_labels)
-print(train_results)
-
-# Test Error Rate
-test_results = model %>%
-  evaluate(test_features, test_labels)
-print(test_results)
-```
 
 # Model Building
 In order to start building our first model selection, we want to conduce a Principal Component Analysis first to reduce our dimensions. In order to do so, we need to first encode our three categorical variables: age, source, and ethno_racial group
-```{r 18}
+```{r 17}
 length(levels(train_df$age))
 length(levels(test_df$age))
 # 6 levels
@@ -639,7 +468,7 @@ We see that age has 6 unique classifiers, source has 7 unique classifiers and et
 For both age and source, we will conduct a frequency encoding to avoid adding more predictors to our data set. 
 
 Below is the code to encode each of the three categorical variables in both the training and test set.
-```{r 19}
+```{r 18}
 # age variable code by NT
 #training data
 train_df <- train_df %>%
@@ -717,7 +546,7 @@ rownames(test_df) <- NULL
 
 ## Response Variable Transformation
 Before we center and scale our predictors to prepare for our PCA. We want to revisit the distribution of our response variable total_anxiety_level. We will look at both a histogram and Q-Q plot to see if we need to transform our response variable or not. We will also conduct the Shapiro-Wilk Test to see if our response variable has a normal distribution or not. If the p-value, of the test is less than 0.05, then we reject the null hypothesis that the distribution is normal.
-```{r 20}
+```{r 19}
 # histogram
 hist(cov_df$total_anxiety_level,
      xlab = "Total Anxiety Level",
@@ -736,7 +565,7 @@ print(shapiro.test(cov_df$total_anxiety_level))
 The histogram looks like Total Anxiety Level relatively follows a normal distribution. However, when we look at the Q-Q plot, we see that the plot does not fully follow the reference line from -2 to 2 on the Theoretical Quantiles axis. This is proven by Shapiro-Wilk Test. With a p-value of 3.072e-14, we reject the null hypothesis and state that the distribution is not normal. Therefore, we need to transform our response variable. Below, we will try a few transformationts to see if that makes the distribution more normal.
 
 Square Root Transformation:
-```{r 21}
+```{r 20}
 # Square Root
 # histogram
 hist(sqrt(cov_df$total_anxiety_level),
@@ -756,7 +585,7 @@ print(shapiro.test(sqrt(cov_df$total_anxiety_level)))
 Based on the histogram, Q-Q plot, and the Shapiro-Wilk Test, the square root transformation did not make the distribution more normal.
 
 Squared:
-```{r 22}
+```{r 21}
 # Squared
 # histogram
 hist((cov_df$total_anxiety_level)^2,
@@ -776,7 +605,7 @@ print(shapiro.test((cov_df$total_anxiety_level)^2))
 Based on the histogram, Q-Q plot, and the Shapiro-Wilk Test, the squared transformation did not make the distribution more normal.
 
 Log Transformation:
-```{r 23}
+```{r 22}
 # Log
 # histogram
 hist(log(cov_df$total_anxiety_level),
@@ -789,7 +618,7 @@ hist(log(cov_df$total_anxiety_level),
 Just looking at the log transformation histogram, we see that the transformation did not make the response variable more normal.
 
 Let us try the Box-Cox transformation:
-```{r 24}
+```{r 23}
 # Box-Cox transformation from MASS package
 # First, we need to ensure our response variable is positive before transforming.
 range(cov_df$total_anxiety_level)
@@ -832,7 +661,7 @@ print(shapiro.test(cov_df$box_cox_anxiety_level))
 # DJ
 ```
 After our Box-Cox transformation, we see that our p-value of the Shapiro-Wilk Test is still not greater than 0.05. However, after our Box-Cox transformation, the p-value is much closer to 0.05 than our initial p-value. Therefore, since the p-value is closer to 0.05, we should use a Box-Cox transformation on our response variable for both our training and our test data sets.
-```{r 25}
+```{r 24}
 orig_shapiro = shapiro.test(cov_df$total_anxiety_level)
 bc_shapiro = shapiro.test(cov_df$box_cox_anxiety_level)
 
@@ -895,7 +724,7 @@ test_df <- test_df %>%
 Now that we have properly transformed our response variable, we can now center and scale our predictors to prepare for PCA.
 
 # Center and Scale Predictors
-```{r 26}
+```{r 25}
 #training data
 
 #storing the response variable into a vector (total_anxiety_level)
@@ -929,7 +758,7 @@ scaled_test_df <- cbind(scaled_test_df, anx_lev_test)
 # NT
 ```
 # PCA (principal component analysis) data reduction
-```{r 27}
+```{r 26}
 # Need to convert matrix to data frame for training and test data
 scaled_train_df = as.data.frame(scaled_train_df)
 scaled_test_df = as.data.frame(scaled_test_df)
@@ -960,7 +789,7 @@ plot(variance_explained, type = "b", main = "Scree Plot", xlab = "Principal Comp
 
 Looks like we have a few elbow that we can point to in our scree plot. We see the proportion of variance explained tend to level out after the 5th, 10th, 15th and 19th principal components. The drop off in proportion of variance explained is relatively small when comparing those principal components. However, the proportion of variance explained really seems to level off after the 19th principal component. In that case, let us change the scaled trained data set to a new data set with those 19 principal components and add the response variable as well. Let us convert that new data set to a data frame.
 
-```{r 30}
+```{r 27}
 pca_scores <- pca_train$x[, 1:19]
 # Combine the reduced principal components with the response variable
 reduced_train_df <- cbind(pca_scores, train_resp)
@@ -971,7 +800,7 @@ reduced_train_df = as.data.frame(reduced_train_df)
 ```
 
 Now let us do the same for the test model.
-```{r 31}
+```{r 28}
 # Separate predictors and response
 test_pred <- scaled_test_df %>% 
   dplyr::select(-anx_lev_test)  # Exclude response variable
@@ -1007,7 +836,7 @@ Now we can start fitting our first model!
 # Intial model building 
 ## Multiple Linear Regression Model
 Let us first just try a simple linear regression model using backwards selection. We will start by fitting a model on the reduced training data frame. For any predictor that has a p-value greater than 0.05, we will remove that predictor
-```{r 32}
+```{r 29}
 cov_lm = lm(train_resp ~., reduced_train_df)
 summary(cov_lm)
 
@@ -1015,7 +844,7 @@ summary(cov_lm)
 ```
 
 Let us remove PC10, PC11, PC12, PC13, PC14, PC15, PC16, PC18, and PC19.
-```{r 33}
+```{r 30}
 feats_to_remove = c("PC10", "PC11", "PC12", "PC13", "PC14", "PC15", "PC16", "PC18", "PC19")
 reduced_train_df_1 = reduced_train_df %>%
   dplyr::select(-feats_to_remove)
@@ -1025,7 +854,7 @@ summary(cov_lm)
 # DJ
 ```
 Now, all of the p-values for each principal component are less than 0.05. Let us test the mean squared error rate on the training data itself.
-```{r 34}
+```{r 31}
 pred_train = predict(cov_lm, newdata = reduced_train_df_1)
 mean((pred_train - reduced_train_df_1$train_resp)^2)
 
@@ -1033,7 +862,7 @@ mean((pred_train - reduced_train_df_1$train_resp)^2)
 ```
 
 Now try on test data
-```{r 35}
+```{r 32}
 pred_test = predict(cov_lm, newdata = reduced_test_df)
 mean((pred_test - reduced_test_df$test_resp)^2)
 
@@ -1042,151 +871,8 @@ mean((pred_test - reduced_test_df$test_resp)^2)
 
 We see a very high mean squared error rate for both the training and test mean squared error rates. 
 
-
-
-## Ordinal Logistic Regression
-For our first model, we are going to build an ordinal logistic regression model. For that we need to first turn our response variable into ordinal. 
-
-Firsts lets see the spread of of our variable. 
-```{r 36}
-summary(reduced_train_df$train_resp)
-
-#NP
-```
-
-```{r 37}
-# Its better to visualize using a histogram. Lets plot a basic one. 
-
-hist(reduced_train_df$train_resp,
-     main = "Histogram of Total Anxiety Level",
-     xlab = "Total Anxiety Level",
-     ylab = "Frequency",
-     col = "skyblue",
-     border = "black",
-     breaks = 30)  
-#NP
-```
-To turn total_anixety_level we need to first break it into intervals and then create the ordinal variable. 
-
-```{r 38}
-# the breaks will be from 0-100, 101-199, 200-299 and so forth,
-
-breaks <- c(-Inf, 100, 199, 299, 399, 499, 599, 699, 799, Inf)
-labels <- 1:9
-
-# And now lets put them into the variable 
-reduced_train_df$or_train_resp<- cut(reduced_train_df$train_resp,
-                                        breaks = breaks,
-                                        labels = labels,
-                                        right = TRUE)
-
-#this code shows weather or not it works
-head(reduced_train_df$or_train_resp)
-#NP
-```
-
-```{r 39}
-# now lets do the same with our test variable
-breaks <- c(-Inf, 100, 199, 299, 399, 499, 599, 699, 799, Inf)
-labels <- 1:9
-
-reduced_test_df$or_test_resp <- cut(reduced_test_df$test_resp,
-                                        breaks = breaks,
-                                        labels = labels,
-                                        right = TRUE)
-head(reduced_test_df$or_test_resp)
-#NP
-```
-
-```{r 40}
-#this code is redundant but it ensures that both of the data sets variables are ordinal 
-
-reduced_train_df$or_train_resp <- factor(reduced_train_df$or_train_resp,
-                                          levels = 1:9,
-                                          ordered = TRUE)
-
-
-reduced_test_df$or_test_resp <- factor(reduced_test_df$or_test_response,
-                                          levels = 1:9,
-                                          ordered = TRUE)
-#NP
-```
-
-```{r 41}
-#now lets see the plot for the distribution of the variable 
-
-ggplot(reduced_train_df, aes(x = or_train_resp)) +
-  geom_bar(fill = "steelblue") +
-  labs(title = "Distribution of Ordinal Anxiety Levels",
-       x = "Ordinal Anxiety Level",
-       y = "Count") +
-  theme_minimal()
-#NP
-```
-
-
-```{r 42}
-#and now some test stats
-table(reduced_train_df$or_train_resp)
-table(reduced_test_df$or_test_resp)
-
-summary(reduced_train_df$or_train_resp)
-summary(reduced_test_df$or_test_resp)
-
-#NP
-```
-
-Now let us fit an ordinal logistic regression model
-```{r 43}
-cov_or <- polr(or_train_resp ~. -train_resp, data = reduced_train_df, Hess = TRUE)
-summary(cov_or)
-
-# NP
-```
-
-# Throwaway Code
-Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
-```{r throw 1}
-#this will remove replace all of the potential outliers with N/a values
-for (x in c("bmi"))
-{
-  value = cov_df[,x][cov_df[,x] %in% boxplot.stats(cov_df[,x])$out]
-  cov_df[,x][cov_df[,x] %in% value] = NA
-}
-#This will remove all of the missing values from the columns
-cov_df <- drop_na(cov_df)
-#checking to see if the N/a values are removed from the data set
-colSums(is.na(cov_df))
-
-#NT
-```
-
-I thought there there were a few observations from the qualitative variables that I would consider as outliers and wanted to get rid of them in the case that they will affect our models in a bad way.
-```{r throw 2}
-#creating a cut off for hours of exercise and then subsetting those that aren't wanted from the data frame
-threshold_hrs_exercise <- 9 
-cov_df <- subset(cov_df, hrs_exercise < threshold_hrs_exercise)
-#creating an array of which ages that should be kept in the data frame
-ages_to_keep <- c("18 to 24", "25 to 32", "33 to 44", "45 to 54", "55 to 64")
-cov_df <- filter(cov_df, age %in% ages_to_keep)
-
-#NT
-```
-
-```{r throw 3}
-#performing 
-pca_test <- prcomp(scaled_test_df)
-str(pca_test)
-
-library(factoextra)
-fviz_eig(pca_test, addlabels = TRUE, ylim = c(0,100))
-
-#NT
-```
-
 ## Regression Tree
-```{r}
-library(tree)
+```{r 33}
 cbm_tree = tree(train_resp ~ ., reduced_train_df)
 summary(cbm_tree)
 plot(cbm_tree)
@@ -1202,8 +888,7 @@ mean((yhat - reduced_test_df$test_resp)^2)
 ```
 
 ## Lasso Regression
-```{r 36}
-library(glmnet)
+```{r 34}
 # Perform lasso regression
 set.seed(123)
 train_matrix = model.matrix(train_resp~., reduced_train_df)
@@ -1225,4 +910,528 @@ pred_lasso = predict(cov_lasso, s = best_lam, newx = test_matrix)
 mean((pred_lasso - reduced_test_df$test_resp)^2)
 
 # DJ
+```
+
+## Ordinal Logistic Regression
+For our first model, we are going to build an ordinal logistic regression model. For that we need to first turn our response variable into ordinal. 
+
+Firsts lets see the spread of of our variable. 
+```{r 35}
+summary(reduced_train_df$train_resp)
+
+#NP
+```
+
+```{r 36}
+# Its better to visualize using a histogram. Lets plot a basic one. 
+
+hist(reduced_train_df$train_resp,
+     main = "Histogram of Total Anxiety Level",
+     xlab = "Total Anxiety Level",
+     ylab = "Frequency",
+     col = "skyblue",
+     border = "black",
+     breaks = 30)  
+#NP
+```
+To turn total_anixety_level we need to first break it into intervals and then create the ordinal variable. 
+
+```{r 37}
+# the breaks will be from 0-100, 101-199, 200-299 and so forth,
+
+breaks <- c(-Inf, 100, 199, 299, 399, 499, 599, 699, 799, Inf)
+labels <- 1:9
+
+# And now lets put them into the variable 
+reduced_train_df$or_train_resp<- cut(reduced_train_df$train_resp,
+                                        breaks = breaks,
+                                        labels = labels,
+                                        right = TRUE)
+
+#this code shows weather or not it works
+head(reduced_train_df$or_train_resp)
+#NP
+```
+
+```{r 38}
+# now lets do the same with our test variable
+breaks <- c(-Inf, 100, 199, 299, 399, 499, 599, 699, 799, Inf)
+labels <- 1:9
+
+reduced_test_df$or_test_resp <- cut(reduced_test_df$test_resp,
+                                        breaks = breaks,
+                                        labels = labels,
+                                        right = TRUE)
+head(reduced_test_df$or_test_resp)
+#NP
+```
+
+```{r 39}
+#this code is redundant but it ensures that both of the data sets variables are ordinal 
+
+reduced_train_df$or_train_resp <- factor(reduced_train_df$or_train_resp,
+                                          levels = 1:9,
+                                          ordered = TRUE)
+
+
+reduced_test_df$or_test_resp <- factor(reduced_test_df$or_test_resp,
+                                          levels = 1:9,
+                                          ordered = TRUE)
+#NP
+```
+
+```{r 40}
+#now lets see the plot for the distribution of the variable 
+
+ggplot(reduced_train_df, aes(x = or_train_resp)) +
+  geom_bar(fill = "steelblue") +
+  labs(title = "Distribution of Ordinal Anxiety Levels",
+       x = "Ordinal Anxiety Level",
+       y = "Count") +
+  theme_minimal()
+#NP
+```
+
+
+```{r 41}
+#and now some test stats
+table(reduced_train_df$or_train_resp)
+table(reduced_test_df$or_test_resp)
+
+summary(reduced_train_df$or_train_resp)
+summary(reduced_test_df$or_test_resp)
+
+#NP
+```
+
+Now let us fit an ordinal logistic regression model
+```{r 42}
+cov_or <- polr(or_train_resp ~. -train_resp, data = reduced_train_df, Hess = TRUE)
+summary(cov_or)
+
+# NP
+```
+
+# Start of neural network model
+
+Any (NN) next to the code block number means for neural network data cleaning/pre-processing steps
+
+We are reading the data in again and performing the same data cleaning and pre-processing that we did above for quantitative regression. We did not need to perform PCA here as a neural network is great at reducing dimensionality.
+```{r 1 NN}
+cov_df <- read.csv("capstone_data.csv")
+
+# Remove X variable, ResponseId variable
+cov_df <- cov_df[, -which(names(cov_df) == "X")]
+cov_df <- cov_df[, -which(names(cov_df) =="ResponseId")]
+
+# We want to use snakecase on features and simplify features. Before we do that, we need to figure out what features we want to keep and what ones we want to get rid of.
+# We already got rid of the X variable from converting our file to a CSV and the ResponseID.
+
+# Data frame dimension
+dim(cov_df)
+# 2534 observations
+# 57 variables
+
+# Print names of variables in data set
+colnames(cov_df)
+
+# Check for NA values
+colSums(is.na(cov_df))
+
+# DJ
+```
+```{r 2 NN}
+cov_df <- cov_df[, -which(names(cov_df) =="Class_Self_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Class_Mom_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Class_Dad_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Income_Relative_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Educ_Mom_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Educ_Dad_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Health_General_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="BMI_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Hrs_Outdoor_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Hrs_Screen_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Hrs_Exercise_group")]
+cov_df <- cov_df[, -which(names(cov_df) =="Age_18to25")]
+cov_df <- cov_df[, -which(names(cov_df) =="Age_3Groups")]
+cov_df <- cov_df[, -which(names(cov_df) =="Source_NCSU")]
+cov_df <- cov_df[, -which(names(cov_df) =="GIS_ZIP")]
+cov_df <- cov_df[, -which(names(cov_df) =="COVID_F1_BadMoods")]
+cov_df <- cov_df[, -which(names(cov_df) =="COVID_F2_LostTime")]
+
+# Check for NAs again
+colSums(is.na(cov_df))
+
+# 280 NA values in Ethnoracial_Group, NHWhite_f, Ethnoracial_Group_White1_Asian2 
+# 8 NA values in Age and Source
+
+# Store Classification into empty vector for now. Might need to revisit this later and re-read in data if remove any observations. And then remove Classification and Classification_High
+psycho_class <- c()
+pyscho_class <- cov_df$Classification
+cov_df <- cov_df[, -which(names(cov_df) =="Classification")]
+cov_df <- cov_df[, -which(names(cov_df) =="Classification_High")]
+
+# Check for NAs again
+colSums(is.na(cov_df))
+
+# Dimension
+dim(cov_df)
+# 2534 observations
+# 38 variables
+
+# DJ
+```
+```{r 3 NN}
+# Which features do we want to round up: COVID_Afraid, COVID_Irritable, COVID_Guilty, COVID_Sad, COVID_Preoccupied and COVID_Stressed
+features_round_up <- c("COVID_Afraid", "COVID_Irritable", "COVID_Guilty", "COVID_Sad", "COVID_Preoccupied", "COVID_Stressed")
+cov_df <- cov_df %>%
+  mutate_at(vars(features_round_up), ~ ceiling(.))
+
+# Now let us merge these into one variable called total_anxiety_level
+cov_df <- cov_df %>%
+  mutate(total_anxiety_level = COVID_Afraid + COVID_Irritable + 
+           COVID_Guilty + COVID_Sad + COVID_Preoccupied)
+
+# Now, let us remove those variables added together from the data set
+cov_df <- cov_df %>%
+  dplyr::select(-any_of(features_round_up))
+
+# Find average and median value of total_anxiety_level
+avg_tot_anx_lev <- mean(cov_df$total_anxiety_level)
+# Mean is 251.17
+med_tot_anx_lev <- median(cov_df$total_anxiety_level)
+# Median is 260
+
+dim(cov_df)
+# 2534 observations
+# 33 Variables
+
+# DJ
+```
+```{r 4 NN}
+cov_df <- cov_df %>%
+  mutate_if(is.numeric, function(x) round(x))
+
+# We do not have enough information from out data on the Type variable. Let us remove that.
+# Also, the binary Educ_College_Grad can be derived from Educ_Self variable. Let us remove that as well.
+# Since we already have a Ethnoracial_Group variable, we can remove Ethnoracial_Group_f, NHWhite_f and Ethnoracial_Group_White1_Asian2 
+cov_df <- cov_df[, -which(names(cov_df) =="Type")]
+cov_df <- cov_df[, -which(names(cov_df) =="Educ_College_Grad")]
+cov_df <- cov_df[, -which(names(cov_df) =="Ethnoracial_Group_f")]
+cov_df <- cov_df[, -which(names(cov_df) =="NHWhite_f")]
+cov_df <- cov_df[, -which(names(cov_df) =="Ethnoracial_Group_White1_Asian2")]
+
+dim(cov_df)
+# 2534 observations
+# 28 variables
+
+# Check for NAs again
+colSums(is.na(cov_df))
+# Ethnoracial_Group has 280 NA values
+# Age has 8
+
+# DJ
+```
+```{r 5 NN}
+#using the Janitor Package for snake casing each var
+cov_df <- cov_df %>%
+  clean_names(case = "snake")
+
+# NT
+```
+```{r 10 NN}
+cov_df <- cov_df %>%
+  mutate(class_family = (class_mom + class_dad)/2)
+
+# Let us round up class_family variable to make it whole and also remove class_dad and class_mom variables
+cov_df <- cov_df %>%
+  mutate_at(vars(class_family), ~ ceiling(.)) %>%
+  dplyr::select(-class_mom) %>%
+  dplyr::select(-class_dad)
+
+# DJ
+```
+```{r 11 NN}
+cov_df <- cov_df[, -which(names(cov_df) =="covid_too_much_time")]
+
+dim(cov_df)
+
+# Now we are left with 26 predictors.
+
+# DJ
+```
+```{r 15 NN}
+# Convert character variables and integers to factors w/ levels
+cov_df <- cov_df %>% 
+  mutate_if(is.character, as.factor)
+
+cov_df <- cov_df %>% 
+  mutate_if(is.integer, as.factor)
+
+calcSplitRatio(37, cov_df)
+
+set.seed(123) # set.seed(123) for reproducibility
+partition <- createDataPartition(cov_df$total_anxiety_level, p = 0.84, list = FALSE)
+train_df <- cov_df[partition,]
+test_df <- cov_df[-partition,]
+
+dim(train_df)
+# 2029 observations
+
+dim(test_df)
+# 505
+
+# DJ
+```
+```{r 16 NN}
+#Using K-nearest-neighbors to fill in the missing values
+train_df <- knnImputation(train_df, k = 3)
+test_df <- knnImputation(test_df, k = 3)
+
+#checking to see if there are any more N/a values
+colSums(is.na(train_df))
+colSums(is.na(test_df))
+unique(train_df$age)
+unique(test_df$age)
+unique(train_df$ethnoracial_group)
+unique(test_df$ethnoracial_group)
+
+# NT
+```
+```{r 23 NN}
+# Box-Cox transformation from MASS package
+# First, we need to ensure our response variable is positive before transforming.
+range(cov_df$total_anxiety_level)
+# 0 to 500 is our range.
+# Therefore, we need to shift data to ensure it is all positive. We will shift by 1.
+cov_df$total_anxiety_level_shift <- cov_df$total_anxiety_level - min(cov_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = cov_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# Optimal lambda is 1.1
+
+# Box-Cox transformation function
+boxcox_transform <- function(x, lambda) {
+  if (lambda == 0) {
+    return(log(x))  # special case for when lambda = 0
+  } else {
+    return((x^lambda - 1) / lambda)
+  }
+}
+
+# Now we apply transformation to total_anxiety_level_shift
+cov_df$box_cox_anxiety_level <- boxcox_transform(cov_df$total_anxiety_level_shift, lambda_opt)
+
+# histogram
+hist(cov_df$box_cox_anxiety_level,
+     xlab = "Box-Cox Total Anxiety Level",
+     main = "Box-Cox Total Anxiety Level Distribution")
+
+qqnorm(cov_df$box_cox_anxiety_level, main = "Q-Q Plot of Box-Cox Total Anxiety Level")
+qqline(cov_df$box_cox_anxiety_level, col = "red")
+
+
+# Shapiro-Wilk Test
+print(shapiro.test(cov_df$box_cox_anxiety_level))
+
+# DJ
+```
+```{r 24 NN}
+orig_shapiro = shapiro.test(cov_df$total_anxiety_level)
+bc_shapiro = shapiro.test(cov_df$box_cox_anxiety_level)
+
+orig_p_val = orig_shapiro$p.value
+bc_p_val = bc_shapiro$p.value
+
+print(paste("Original p-value:", orig_p_val))
+print(paste("Box-Cox transformed p-value:", bc_p_val))
+
+if (bc_p_val > orig_p_val) {
+  print("Yes, p-value after Box-Cox transformation is greater than original p-value")
+} else {
+  print("No, p-value after Box-Cox transformation is not greater than original p-value")
+}
+
+# Now, let us Box-Cox transform our response variable in our training and test data
+# Training
+range(train_df$total_anxiety_level)
+# 0 to 500
+train_df$total_anxiety_level_shift <- train_df$total_anxiety_level - min(train_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = train_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# 1.1 again
+train_df$box_cox_anxiety_level <- boxcox_transform(train_df$total_anxiety_level_shift, lambda_opt)
+
+# Now, let us remove total_anxiety_level and total_anxiety_level_shift from train_df then rename the box_cox_anxiety_level to total_anxiety_level. Let us also round to the nearest whole number
+train_df <- train_df %>%
+  dplyr::select(-total_anxiety_level, -total_anxiety_level_shift) %>%
+  dplyr::rename(total_anxiety_level = box_cox_anxiety_level) %>%
+  dplyr::mutate(total_anxiety_level = round(total_anxiety_level))
+
+# Test Data
+range(test_df$total_anxiety_level)
+# 0 to 500
+test_df$total_anxiety_level_shift <- test_df$total_anxiety_level - min(test_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = test_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# 1.1 again
+test_df$box_cox_anxiety_level <- boxcox_transform(test_df$total_anxiety_level_shift, lambda_opt)
+
+# Now, let us remove total_anxiety_level and total_anxiety_level_shift from train_df then rename the box_cox_anxiety_level to total_anxiety_level. Let us also round to the nearest whole number
+test_df <- test_df %>%
+  dplyr::select(-total_anxiety_level, -total_anxiety_level_shift) %>%
+  dplyr::rename(total_anxiety_level = box_cox_anxiety_level) %>%
+  dplyr::mutate(total_anxiety_level = round(total_anxiety_level))
+
+# DJ
+```
+
+One-hot-encoding our categorical variables
+```{r 43}
+
+#Creating dummy variables (one-hot-encoding) for the specified columns in train_df
+##train_df
+onehot_encoder <- dummyVars(~ age + source + ethnoracial_group,
+                            train_df[, c("age", "source",
+                                         "ethnoracial_group")],
+                            levelsOnly = TRUE,
+                            fullRank = TRUE)
+#predicting dummy variables using the onehot_encoder for train_df
+onehot_enc_train <- predict(onehot_encoder,
+                            train_df[,c("age", "source",
+                                        "ethnoracial_group")])
+#combining the original train_df with the one-hot encoded variables
+train_df <- cbind(train_df, onehot_enc_train)
+
+#Creating dummy variables (one-hot-encoding) for the specified columns in test_df
+onehot_encoder <- dummyVars(~ age + source + ethnoracial_group,
+                            test_df[, c("age", "source",
+                                         "ethnoracial_group")],
+                            levelsOnly = TRUE,
+                            fullRank = TRUE)
+#predicting dummy variables using the onehot_encoder for test_df
+onehot_enc_test <- predict(onehot_encoder,
+                            test_df[,c("age", "source",
+                                        "ethnoracial_group")])
+#combining the original test_df with the one-hot encoded variables
+test_df <- cbind(test_df, onehot_enc_test)
+
+#specifying the columns to exclude from data sets
+cols_to_exclude <- c(22, 23, 24)
+
+#Scale the test_df columns (excluding specified columns) using mean and sd from train_df
+test_df[, -(cols_to_exclude)] <- scale(test_df[, -c(cols_to_exclude)],
+                              center = apply(train_df[, -c(cols_to_exclude)], 2, mean),
+                              scale = apply(train_df[, -c(cols_to_exclude)], 2, sd))
+#Scale the train_df columns (excluding specified columns)
+train_df[, -c(cols_to_exclude)] <- scale(train_df[, -c(cols_to_exclude)])
+#choosing the amount of features to be included in the neural network
+training_features <- array(data = unlist(train_df[, -c(cols_to_exclude)]),
+                                         dim = c(nrow(train_df), 37))
+#choosing the response variable from the train_df
+training_labels <- array(data = unlist(train_df[, 25]),
+                         dim = c(nrow(train_df)))
+#choosing the amount of features to be included in the neural network
+test_features <- array(data = unlist(test_df[, -c(cols_to_exclude)]),
+                       dim = c(nrow(test_df), 37))
+#choosing the response variable from the test_df
+test_labels <- array(data = unlist(test_df[, 25]),
+                     dim = c(nrow(test_df)))
+
+#excluding the original columns that were one-hot-encoded
+train_df <- train_df[, !names(train_df) %in% c ("age", "source", "ethnoracial_group")]
+test_df <- test_df[, !names(test_df) %in% c ("age", "source", "ethnoracial_group")]
+
+#NT
+```
+
+```{r 44}
+set.seed(123)
+calcSplitRatio(37, train_df)
+# "The ideal split ratio is 0.84:0.16 training:testing"
+use_virtualenv("my_tf_workspace")
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu"),
+  layer_dense(units = 50, activation = "relu"),
+  layer_dense(units = 25, activation = "relu"),
+  layer_dense(units = 1, activation = "linear")
+))
+compile(model,
+        optimizer = "rmsprop",
+        loss = "MeanSquaredLogarithmicError",
+        metrics = "MeanSquaredError")
+
+early_stopping <- callback_early_stopping(patience = 5)
+
+history <- fit(model, training_features, training_labels,
+               epochs = 50, batch_size = 512, validation_split = 0.16,
+               callbacks = list(early_stopping))
+plot(history)
+
+# Training Error Rate
+train_results = model %>%
+  evaluate(training_features, training_labels)
+print(train_results)
+
+# Test Error Rate
+test_results = model %>%
+  evaluate(test_features, test_labels)
+print(test_results)
+
+#NT/DJ
+```
+
+# Throwaway Code
+Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
+```{r throw 1, eval=FALSE, include=FALSE}
+#this will remove replace all of the potential outliers with N/a values
+for (x in c("bmi"))
+{
+  value = cov_df[,x][cov_df[,x] %in% boxplot.stats(cov_df[,x])$out]
+  cov_df[,x][cov_df[,x] %in% value] = NA
+}
+#This will remove all of the missing values from the columns
+cov_df <- drop_na(cov_df)
+#checking to see if the N/a values are removed from the data set
+colSums(is.na(cov_df))
+
+#NT
+```
+
+I thought there there were a few observations from the qualitative variables that I would consider as outliers and wanted to get rid of them in the case that they will affect our models in a bad way.
+```{r throw 2, eval=FALSE, include=FALSE}
+#creating a cut off for hours of exercise and then subsetting those that aren't wanted from the data frame
+threshold_hrs_exercise <- 9 
+cov_df <- subset(cov_df, hrs_exercise < threshold_hrs_exercise)
+#creating an array of which ages that should be kept in the data frame
+ages_to_keep <- c("18 to 24", "25 to 32", "33 to 44", "45 to 54", "55 to 64")
+cov_df <- filter(cov_df, age %in% ages_to_keep)
+
+#NT
+```
+
+```{r throw 3, eval=FALSE, include=FALSE}
+#performing 
+pca_test <- prcomp(scaled_test_df)
+str(pca_test)
+
+library(factoextra)
+fviz_eig(pca_test, addlabels = TRUE, ylim = c(0,100))
+
+#NT
 ```
