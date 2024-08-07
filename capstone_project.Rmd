@@ -442,6 +442,83 @@ unique(test_df$ethnoracial_group)
 
 # NT
 ```
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(caret)
+library(keras)
+library(tensorflow)
+library(pROC)
+
+# here is the code for creating dummy variables for our categorical variable 
+onehot_encoder <- dummyVars(~ age + source + ethnoracial_group,
+                            train_df[, c("age", "source",
+                                         "ethnoracial_group")],
+                            levelsOnly = TRUE,
+                            fullRank = TRUE)
+
+onehot_enc_train <- predict(onehot_encoder,
+                            train_df[,c("age", "source",
+                                        "ethnoracial_group")])
+
+train_df <- cbind(train_df, onehot_enc_train)
+
+onehot_encoder <- dummyVars(~ age + source + ethnoracial_group,
+                            test_df[, c("age", "source",
+                                         "ethnoracial_group")],
+                            levelsOnly = TRUE,
+                            fullRank = TRUE)
+
+onehot_enc_test <- predict(onehot_encoder,
+                            test_df[,c("age", "source",
+                                        "ethnoracial_group")])
+
+test_df <- cbind(test_df, onehot_enc_test)
+
+cols_to_exclude <- c(22, 23, 24)
+
+test_df[, -(cols_to_exclude)] <- scale(test_df[, -c(cols_to_exclude)],
+                              center = apply(train_df[, -c(cols_to_exclude)], 2, mean),
+                              scale = apply(train_df[, -c(cols_to_exclude)], 2, sd))
+train_df[, -c(cols_to_exclude)] <- scale(train_df[, -c(cols_to_exclude)])
+
+training_features <- array(data = unlist(train_df[, -c(cols_to_exclude)]),
+                                         dim = c(nrow(train_df), 37))
+training_labels <- array(data = unlist(train_df[, 25]),
+                         dim = c(nrow(train_df)))
+
+test_features <- array(data = unlist(test_df[, -c(cols_to_exclude)]),
+                       dim = c(nrow(test_df), 37))
+test_labels <- array(data = unlist(test_df[, 25]),
+                     dim = c(nrow(test_df)))
+
+train_df <- train_df[, !names(train_df) %in% c ("age", "source", "ethnoracial_group")]
+test_df <- test_df[, !names(test_df) %in% c ("age", "source", "ethnoracial_group")]
+
+
+```
+
+```{r}
+use_virtualenv("my_tf_workspace")
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu"),
+  layer_dense(units = 50, activation = "relu"),
+  layer_dense(units = 25, activation = "relu"),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+compile(model,
+        optimizer = "rmsprop",
+        loss = "MeanSquaredLogarithmicError",
+        metrics = "MeanSquaredError")
+
+early_stopping <- callback_early_stopping(patience = 5)
+
+history <- fit(model, training_features, training_labels,
+               epochs = 50, batch_size = 512, validation_split = 0.33,
+               callbacks = list(early_stopping))
+plot(history)
+```
 
 # Model Building
 In order to start building our first model selection, we want to conduce a Principal Component Analysis first to reduce our dimensions. In order to do so, we need to first encode our three categorical variables: age, source, and ethno_racial group
