@@ -443,6 +443,90 @@ unique(test_df$ethnoracial_group)
 # NT
 ```
 ```{r}
+# Box-Cox transformation from MASS package
+# First, we need to ensure our response variable is positive before transforming.
+range(cov_df$total_anxiety_level)
+# 0 to 500 is our range.
+# Therefore, we need to shift data to ensure it is all positive. We will shift by 1.
+cov_df$total_anxiety_level_shift <- cov_df$total_anxiety_level - min(cov_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = cov_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# Optimal lambda is 1.1
+
+# Box-Cox transformation function
+boxcox_transform <- function(x, lambda) {
+  if (lambda == 0) {
+    return(log(x))  # special case for when lambda = 0
+  } else {
+    return((x^lambda - 1) / lambda)
+  }
+}
+
+# Now we apply transformation to total_anxiety_level_shift
+cov_df$box_cox_anxiety_level <- boxcox_transform(cov_df$total_anxiety_level_shift, lambda_opt)
+
+# histogram
+hist(cov_df$box_cox_anxiety_level,
+     xlab = "Box-Cox Total Anxiety Level",
+     main = "Box-Cox Total Anxiety Level Distribution")
+
+qqnorm(cov_df$box_cox_anxiety_level, main = "Q-Q Plot of Box-Cox Total Anxiety Level")
+qqline(cov_df$box_cox_anxiety_level, col = "red")
+
+
+# Shapiro-Wilk Test
+print(shapiro.test(cov_df$box_cox_anxiety_level))
+
+# Now, let us Box-Cox transform our response variable in our training and test data
+# Training
+range(train_df$total_anxiety_level)
+# 0 to 500
+train_df$total_anxiety_level_shift <- train_df$total_anxiety_level - min(train_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = train_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# 1.1 again
+train_df$box_cox_anxiety_level <- boxcox_transform(train_df$total_anxiety_level_shift, lambda_opt)
+
+# Now, let us remove total_anxiety_level and total_anxiety_level_shift from train_df then rename the box_cox_anxiety_level to total_anxiety_level. Let us also round to the nearest whole number
+train_df <- train_df %>%
+  dplyr::select(-total_anxiety_level, -total_anxiety_level_shift) %>%
+  dplyr::rename(total_anxiety_level = box_cox_anxiety_level) %>%
+  dplyr::mutate(total_anxiety_level = round(total_anxiety_level))
+
+# Test Data
+range(test_df$total_anxiety_level)
+# 0 to 500
+test_df$total_anxiety_level_shift <- test_df$total_anxiety_level - min(test_df$total_anxiety_level) + 1
+# Now we will fit linear model only using the intercept and no predictors
+model <- lm(total_anxiety_level_shift ~ 1, data = test_df)
+# use boxcox function from MASS
+bc <- boxcox(model, lambda = seq(-5, 5, by = 0.1))
+# We want to find optial lambda for transformation
+lambda_opt <- bc$x[which.max(bc$y)]
+print(lambda_opt)
+# 1.1 again
+test_df$box_cox_anxiety_level <- boxcox_transform(test_df$total_anxiety_level_shift, lambda_opt)
+
+# Now, let us remove total_anxiety_level and total_anxiety_level_shift from train_df then rename the box_cox_anxiety_level to total_anxiety_level. Let us also round to the nearest whole number
+test_df <- test_df %>%
+  dplyr::select(-total_anxiety_level, -total_anxiety_level_shift) %>%
+  dplyr::rename(total_anxiety_level = box_cox_anxiety_level) %>%
+  dplyr::mutate(total_anxiety_level = round(total_anxiety_level))
+
+# DJ
+
+
+# Start of neural network model
 # Load necessary libraries
 library(dplyr)
 library(caret)
@@ -499,13 +583,16 @@ test_df <- test_df[, !names(test_df) %in% c ("age", "source", "ethnoracial_group
 ```
 
 ```{r}
+set.seed(123)
+calcSplitRatio(37, train_df)
+# "The ideal split ratio is 0.84:0.16 training:testing"
 use_virtualenv("my_tf_workspace")
 
 model <- keras_model_sequential(list(
   layer_dense(units = 75, activation = "relu"),
   layer_dense(units = 50, activation = "relu"),
   layer_dense(units = 25, activation = "relu"),
-  layer_dense(units = 1, activation = "sigmoid")
+  layer_dense(units = 1, activation = "linear")
 ))
 compile(model,
         optimizer = "rmsprop",
@@ -515,9 +602,19 @@ compile(model,
 early_stopping <- callback_early_stopping(patience = 5)
 
 history <- fit(model, training_features, training_labels,
-               epochs = 50, batch_size = 512, validation_split = 0.33,
+               epochs = 50, batch_size = 512, validation_split = 0.16,
                callbacks = list(early_stopping))
 plot(history)
+
+# Training Error Rate
+train_results = model %>%
+  evaluate(training_features, training_labels)
+print(train_results)
+
+# Test Error Rate
+test_results = model %>%
+  evaluate(test_features, test_labels)
+print(test_results)
 ```
 
 # Model Building
@@ -944,6 +1041,8 @@ mean((pred_test - reduced_test_df$test_resp)^2)
 ```
 
 We see a very high mean squared error rate for both the training and test mean squared error rates. 
+
+
 
 ## Ordinal Logistic Regression
 For our first model, we are going to build an ordinal logistic regression model. For that we need to first turn our response variable into ordinal. 
