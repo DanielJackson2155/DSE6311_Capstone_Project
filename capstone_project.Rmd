@@ -958,6 +958,7 @@ plot(cov_lm)
 
 Now, all of the p-values for each principal component are less than 0.05. Let us test the mean squared error rate on the training data itself.
 ```{r lm 13}
+set.seed(123)
 pred_train = predict(cov_lm, newdata = reduced_train_df)
 mean((pred_train - reduced_train_df$train_resp)^2)
 
@@ -977,6 +978,7 @@ abline(lm_model, col = "red", lwd = 2)
 
 Now try on test data
 ```{r lm 14}
+set.seed(123)
 pred_test = predict(cov_lm, newdata = reduced_test_df)
 mean((pred_test - reduced_test_df$test_resp)^2)
 
