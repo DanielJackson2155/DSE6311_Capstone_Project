@@ -946,6 +946,14 @@ summary(cov_lm)
 
 # DJ
 ```
+```{r}
+#Diagnostic Plots for multiple linear regression
+par(mfrow=c(2,2))
+plot(cov_lm)
+
+#NT
+```
+
 
 Now, all of the p-values for each principal component are less than 0.05. Let us test the mean squared error rate on the training data itself.
 ```{r lm 13}
@@ -1127,7 +1135,7 @@ Our neural network model, although more difficult to convey to stakeholders, pro
 
 We want to keep our stakeholders in mind here as they may not have the technical skills to interpret a neural network model. We could ensure them that the model finds underlying linear patterns and linear relationships in our data that the linear regression model cannot find. However, they may be skeptical as there are no specific predictor that we can point to in our neural network model.
 
-For our final model, we will fit a Suppor Vector Machine model. We want to try and fit a similar performing model that may be more interpretable than our neural network model. Even if we produce similar results, if we can convey the process and identify variables with more predictive power to our stakeholders, it will be much more easier to implement our policies to help students who suffer from COVID-19 anxiety.
+For our final model, we will fit a Support Vector Machine model. We want to try and fit a similar performing model that may be more interpretable than our neural network model. Even if we produce similar results, if we can convey the process and identify variables with more predictive power to our stakeholders, it will be much more easier to implement our policies to help students who suffer from COVID-19 anxiety.
 
 # Support Vector Machine Model
  The goal of a Support Vector Machine model is to find a function that approximates the data within a certain error threshold and aims to be as flat as possible while deviating from the actual data points by no more than the error threshold. First need to convert training and test data back to data frame.
@@ -1370,7 +1378,9 @@ print(paste("Test MSE:", round(test_mse, 2)))
 
 This produced the same training and test MSE as the previous SVM model. Let use the the model with less cross validations for faster computing time.
 
-
+```{r}
+summary(svm_model)
+```
 
 # Throwaway Code
 Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
