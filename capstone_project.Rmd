@@ -946,6 +946,7 @@ summary(cov_lm)
 
 # DJ
 ```
+
 ```{r}
 #Diagnostic Plots for multiple linear regression
 par(mfrow=c(2,2))
@@ -960,6 +961,17 @@ Now, all of the p-values for each principal component are less than 0.05. Let us
 pred_train = predict(cov_lm, newdata = reduced_train_df)
 mean((pred_train - reduced_train_df$train_resp)^2)
 
+# Plot predicted versus actual 
+plot(pred_train, reduced_train_df$train_resp,
+     xlab = "Predicted Values",
+     ylab = "Actual Values",
+     main = "Scatter Plot of Predicted Training Values vs Actual Values",
+     pch = 16, 
+     cex = 0.5,
+     col = "black") 
+lm_model <- lm(reduced_train_df$train_resp ~ pred_train)
+abline(lm_model, col = "red", lwd = 2)
+
 # DJ
 ```
 
@@ -968,6 +980,16 @@ Now try on test data
 pred_test = predict(cov_lm, newdata = reduced_test_df)
 mean((pred_test - reduced_test_df$test_resp)^2)
 
+plot(pred_test, reduced_test_df$test_resp,
+     xlab = "Predicted Values",
+     ylab = "Actual Values",
+     main = "Scatter Plot of Predicted Test Values vs Actual Values",
+     pch = 16, 
+     cex = 0.5,
+     col = "black") 
+lm_model <- lm(reduced_train_df$train_resp ~ pred_train)
+abline(lm_model, col = "red", lwd = 2)
+
 # DJ
 ```
 
@@ -975,15 +997,16 @@ We see a very high mean squared error rate for both the training and test mean s
 
 ## Regression Tree
 ```{r rt 1}
-cbm_tree = tree(train_resp ~ ., reduced_train_df)
+set.seed(123)
+cov_tree = tree(train_resp ~ ., reduced_train_df)
 summary(cbm_tree)
 plot(cbm_tree)
 text(cbm_tree, pretty = 0)
 
-yhat = predict(cbm_tree, newdata = reduced_train_df)
+yhat = predict(cov_tree, newdata = reduced_train_df)
 mean((yhat - reduced_train_df$train_resp)^2)
 
-yhat = predict(cbm_tree, newdata = reduced_test_df)
+yhat = predict(cov_tree, newdata = reduced_test_df)
 mean((yhat - reduced_test_df$test_resp)^2)
 
 # DJ
