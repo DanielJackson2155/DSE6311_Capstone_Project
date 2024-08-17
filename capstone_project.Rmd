@@ -1404,7 +1404,27 @@ print(paste("Test MSE:", round(test_mse, 2)))
 This produced the same training and test MSE as the previous SVM model. Let use the the model with less cross validations for faster computing time.
 
 ```{r}
-summary(svm_model)
+#unscaling the "test_feat" so it so predictors can be plotted against response.
+
+
+#attaching test predictions to testing set
+test_feat <- cbind(test_feat, predictions)
+
+#function created to plot predictors against response variables to see patterns within students.
+plot_list <- list()
+
+for (predictor in colnames(test_feat)[colnames(test_feat) != "predictions"]) {
+  p <- ggplot(test_feat, aes_string(x = predictor, y = "predictions")) +
+       geom_point() +
+       labs(title = paste("Scatterplot of", predictor, "vs", "predictions")) +
+       theme_minimal()
+  plot_list[[predictor]] <- p
+}
+
+# Display plots
+for (p in plot_list) {
+  print(p)
+}
 ```
 
 # Throwaway Code
