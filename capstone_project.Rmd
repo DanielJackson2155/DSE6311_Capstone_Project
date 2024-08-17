@@ -426,6 +426,7 @@ set.seed(123) # set.seed(123) for reproducibility
 partition <- createDataPartition(cov_df$total_anxiety_level, p = 0.8, list = FALSE)
 train_df <- cov_df[partition,]
 test_df <- cov_df[-partition,]
+test_df2 <- test_df
 
 dim(train_df)
 # 2029 observations
