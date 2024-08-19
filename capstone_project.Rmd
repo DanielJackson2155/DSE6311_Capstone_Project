@@ -33,6 +33,10 @@ library(pROC)
 library(tree)
 library(e1071)
 library(mlr)
+library(gridExtra)
+library(plotly)
+library(reshape2)
+
 # all
 ```
 
@@ -1539,8 +1543,6 @@ test_df <- knnImputation(test_df, k = 3)
 
 Replacing the initial response variable "total_anxiety_level" with the predictions obtained from the SVM model for further analysis.
 ```{r Conclusion 2}
-test_df <- test_df %>%
-  dplyr::select(-total_anxiety_level)
 
 #attaching test predictions to testing set
 test_df <- cbind(test_df, predictions)
@@ -1560,7 +1562,342 @@ for (predictor in colnames(test_df)[colnames(test_df) != "predictions"]) {
 for (p in plot_list) {
   print(p)
 }
+#NP
 ```
+
+
+#Let's see how the actual values compare to the predicted values by making scatter plot with both variables
+```{r}
+
+plot_list <- list()
+
+#this is the code for the function to create plots with 2 variables and lets try to make the tittle look better. 
+
+for (predictor in colnames(test_df)[colnames(test_df) != "predictions"]) {
+  title <- paste("Scatterplot of", predictor, "vs Predictions and Actual Anxiety Levels")
+  y_label <- "Values"
+  
+  p <- ggplot(test_df) +
+       geom_point(aes_string(x = predictor, y = "predictions", color = "'Predictions'", shape = "'Predictions'"), size = 3, alpha = 0.7) +
+       geom_point(aes_string(x = predictor, y = "total_anxiety_level", color = "'Actual Anxiety Levels'", shape = "'Actual Anxiety Levels'"), size = 3, alpha = 0.7) +
+       labs(title = title,
+            x = x_label,
+            y = y_label,
+            color = "Legend",
+            shape = "Legend") +
+       scale_color_manual(values = c("Predictions" = "blue", "Actual Anxiety Levels" = "red")) +
+       scale_shape_manual(values = c("Predictions" = 16, "Actual Anxiety Levels" = 17)) +
+       theme_minimal() +
+       theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+             axis.title.x = element_text(size = 14),
+             axis.title.y = element_text(size = 14),
+             legend.position = "top",
+             legend.title = element_text(size = 12),
+             legend.text = element_text(size = 12),
+             panel.grid.major = element_line(color = "grey90"),
+             panel.grid.minor = element_line(color = "grey95"))
+  
+  plot_list[[predictor]] <- p
+}
+
+# now this will print the plots 
+for (p in plot_list) {
+  print(p)
+}
+
+#NP
+```
+#there is a slight overestimation for our redictions and it can be seen when plotted with the actual total_anixiety_level variable.
+
+
+```
+#the scatter plot shows up that the predicted vs actual values have a positive corrolation, which should not be the case
+```{r}
+
+ggplot(test_df, aes(x = total_anxiety_level, y = predictions)) +
+  geom_point() +
+  geom_smooth(method = 'lm', col = 'red') +
+  labs(title = "Scatter Plot: Total Anxiety Level vs Predictions",
+       x = "Total Anxiety Level", y = "Predictions")
+#NP
+```
+
+#here is a plotly graph, which is interactive but cannot be used for our report because it will be a pdf or worddoc 
+```{r}
+
+p <- ggplot(test_df, aes(x = total_anxiety_level, y = predictions)) +
+  geom_point() +
+  labs(title = "Interactive Scatter Plot: Total Anxiety Level vs Predictions",
+       x = "Total Anxiety Level", y = "Predictions")
+
+ggplotly(p)
+#NP
+```
+
+```{r}
+#lets calculate the corrolation coefficient and see how they are related to each other
+correlation <- cor(test_df$total_anxiety_level, test_df$predictions, use = "complete.obs")
+print(paste("Correlation coefficient: ", correlation))
+#NP
+```
+
+#a good way to see the overall spread of the values for our two variables would be by creating a translucent density plot, we will be following a colour patter to keep the consistency to make it easier for visualization 
+```{r}
+
+ggplot(test_df) +
+  geom_density(aes(x = total_anxiety_level, fill = "Total Anxiety Level"), alpha = 0.5, color = "blue") +
+  geom_density(aes(x = predictions, fill = "Predictions"), alpha = 0.5, color = "green") +
+  labs(title = "Density Plot: Total Anxiety Level vs Predictions",
+       x = "Value", y = "Density") +
+  scale_fill_manual(values = c("Total Anxiety Level" = "blue", "Predictions" = "green")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        legend.title = element_blank(),
+        legend.position = "top",
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
+
+#NP
+```
+
+#now lets break it down by variables, starting with the most important one, age. Blue represents the actual and green represents the predicted, as you can see the predicted plot is somewhat normal but the mean and median is much higher than the actual values
+```{r}
+
+ggplot(test_df, aes(x = age)) +
+  geom_boxplot(aes(y = total_anxiety_level, fill = "Total Anxiety Level"), alpha = 0.5, outlier.shape = NA) +
+  geom_boxplot(aes(y = predictions, fill = "Predictions"), alpha = 0.5, outlier.shape = NA) +
+  geom_jitter(aes(y = total_anxiety_level, color = "Total Anxiety Level"), shape = 16, position = position_jitter(width = 0.2), size = 2) +
+  geom_jitter(aes(y = predictions, color = "Predictions"), shape = 4, position = position_jitter(width = 0.2), size = 2) +
+  labs(title = "Box Plot: Total Anxiety Level and Predictions by Age",
+       x = "Age", y = "Value") +
+  scale_fill_manual(values = c("Total Anxiety Level" = "blue", "Predictions" = "green")) +
+  scale_color_manual(values = c("Total Anxiety Level" = "blue", "Predictions" = "green")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        legend.title = element_blank(),
+        legend.position = "top",
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
+#NP
+```
+
+#now lets create a box plot using the same method for the gender.
+
+```{r}
+
+ggplot(test_df, aes(x = as.factor(female))) +
+  geom_boxplot(aes(y = total_anxiety_level, fill = "Total Anxiety Level"), alpha = 0.5, outlier.shape = NA) +
+  geom_boxplot(aes(y = predictions, fill = "Predictions"), alpha = 0.5, outlier.shape = NA) +
+  geom_jitter(aes(y = total_anxiety_level, shape = "Total Anxiety Level", color = "Total Anxiety Level"),
+              position = position_jitter(width = 0.2), size = 2) +
+  geom_jitter(aes(y = predictions, shape = "Predictions", color = "Predictions"),
+              position = position_jitter(width = 0.2), size = 2) +
+  scale_fill_manual(values = c("Total Anxiety Level" = "blue", "Predictions" = "green")) +
+  scale_color_manual(values = c("Total Anxiety Level" = "blue", "Predictions" = "green")) +
+  scale_shape_manual(values = c("Total Anxiety Level" = 16, "Predictions" = 4)) +
+  scale_x_discrete(labels = c("0" = "Male", "1" = "Female")) +
+  labs(title = "Box Plot: Total Anxiety Level and Predictions by Gender",
+       x = "Gender",
+       y = "Value",
+       fill = "Legend",
+       color = "Legend",
+       shape = "Legend") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        legend.position = "top",
+        legend.title = element_blank())
+
+#NP
+```
+#the model is definetly making overestimates for all the variables. However we can see some factors have a higher chance of having high anxiety compared to others. Female in this case vs male.
+
+
+```{r}
+# lets pull up some summary statistics for total anxiety level and predictions variable
+summary_stats <- data.frame(
+  Variable = c("Total Anxiety Level", "Predictions"),
+  Mean = c(mean(test_df$total_anxiety_level, na.rm = TRUE), mean(test_df$predictions, na.rm = TRUE)),
+  Median = c(median(test_df$total_anxiety_level, na.rm = TRUE), median(test_df$predictions, na.rm = TRUE)),
+  SD = c(sd(test_df$total_anxiety_level, na.rm = TRUE), sd(test_df$predictions, na.rm = TRUE))
+)
+print(summary_stats)
+
+#the mean and median are higher for both variables, I want to check if its the case for all the factors 
+#NP
+```
+
+
+
+```{r}
+# this is for the residuals calcuation, if all is all there should be values around the 0 line. 
+test_df$residuals <- test_df$total_anxiety_level - test_df$predictions
+
+
+
+# lets plot our calculated residual values 
+ggplot(test_df, aes(x = predictions, y = residuals)) +
+  geom_point(color = "black", size = 2, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residual Plot",
+       x = "Predictions",
+       y = "Residuals") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_text(size = 14),
+        axis.title.y = element_text(size = 14))
+#NP
+```
+#majority the residual values are negetive. The predicted values are greater than the actual values.
+
+```{r}
+cov_df_eda <-test_df
+```
+```{r}
+
+#lets re read the data and only choose specific numerical data's whos mean median and sd we want to plot and turn them into factors
+
+factor_vars <- c("limit_outdoor_active", "limit_exercise_home", "limit_exercise_gym",
+                 "limit_people", "limit_groups", "limit_travel", "health_general",
+                 "covid_worry", "covid_lot_time", "hrs_screen", "hrs_outdoor",
+                 "hrs_exercise", "educ_mom", "educ_dad", "educ_self",
+                 "income_relative", "class_self", "park_use", "infected_any",
+                 "female", "class_family")
+
+cov_df_eda[factor_vars] <- lapply(cov_df_eda[factor_vars], as.factor)
+
+# we can now covert it into long format for easier plotting
+long_df <- melt(cov_df_eda, id.vars = factor_vars, measure.vars = c("total_anxiety_level", "predictions"),
+                 variable.name = "Type", value.name = "Value")
+
+plot_list <- list()
+
+#we are following the same method as before   
+
+for (factor_var in factor_vars) {
+  title <- paste("Box Plot of Total Anxiety Level and Predictions by", factor_var)
+  x_label <- factor_var
+  y_label <- "Values"
+  
+  subset_df <- long_df[long_df[[factor_var]] %in% unique(cov_df_eda[[factor_var]]), ]
+  p <- ggplot(subset_df, aes_string(x = factor_var, y = "Value", fill = "Type")) +
+       geom_boxplot(outlier.colour = "red", outlier.size = 2, alpha = 0.5) +
+       scale_fill_manual(name = "Type", values = c("total_anxiety_level" = "blue", "predictions" = "green")) +
+       labs(title = title,
+            x = x_label,
+            y = y_label) +
+       theme_minimal() +
+       theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+             axis.title.x = element_text(size = 14),
+             axis.title.y = element_text(size = 14),
+             legend.position = "top",
+             panel.grid.major = element_line(color = "grey90"),
+             panel.grid.minor = element_line(color = "grey95"))
+  
+  plot_list[[factor_var]] <- p
+}
+
+# now lets display the plots
+for (p in plot_list) {
+  print(p)
+}
+#NP
+```
+```{r}
+
+# lets create an empty list first which we will plug our values into 
+summary_list <- list()
+
+# using this loop we can calculate our test values (summary table)
+for (factor_var in factor_vars) {
+  # Create a summary table for the current factor variable
+  summary_table <- cov_df_eda %>%
+    group_by_at(factor_var) %>%
+    summarise(
+      Mean_Anxiety = mean(total_anxiety_level, na.rm = TRUE),
+      Median_Anxiety = median(total_anxiety_level, na.rm = TRUE),
+      SD_Anxiety = sd(total_anxiety_level, na.rm = TRUE),
+      Mean_Predictions = mean(predictions, na.rm = TRUE),
+      Median_Predictions = median(predictions, na.rm = TRUE),
+      SD_Predictions = sd(predictions, na.rm = TRUE)
+    )
+  
+  # now lets add the summary table to the list 
+  summary_list[[factor_var]] <- summary_table
+}
+
+summary_list
+#NP
+```
+```{r}
+
+#I want to combine all the stats and remove the other variables that we used to bind the values 
+combined_summary_table <- bind_rows(summary_list, .id = "Index")
+
+# easiest way would be combining and creating indicies as we don't need the other information 
+combined_summary_table <- combined_summary_table %>%
+  mutate(Index = row_number())
+combined_summary_table <- combined_summary_table %>%
+  select(Index, Mean_Anxiety, Median_Anxiety, SD_Anxiety, 
+         Mean_Predictions, Median_Predictions, SD_Predictions)
+
+print(combined_summary_table)
+#NP
+```
+
+```{r}
+
+#now we can plot the 3 stats together to see how it looks  
+custom_theme <- theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    axis.title = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "none",
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_line(color = "grey90")
+  )
+
+#  Mean_Anxiety vs. Mean_Predictions scatterplot
+p1 <- ggplot(combined_summary_table, aes(x = Mean_Anxiety, y = Mean_Predictions)) +
+  geom_point(color = "dodgerblue", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", col = "red", linetype = "solid", size = 1) +
+  labs(title = "Mean Anxiety vs. Mean Predictions",
+       x = "Mean Anxiety",
+       y = "Mean Predictions") +
+  custom_theme
+
+# Median_Anxiety vs. Median_Predictions scatter plot
+p2 <- ggplot(combined_summary_table, aes(x = Median_Anxiety, y = Median_Predictions)) +
+  geom_point(color = "forestgreen", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", col = "red", linetype = "solid", size = 1) +
+  labs(title = "Median Anxiety vs. Median Predictions",
+       x = "Median Anxiety",
+       y = "Median Predictions") +
+  custom_theme
+
+# SD_Anxiety vs. SD_Predictions scatter plot
+p3 <- ggplot(combined_summary_table, aes(x = SD_Anxiety, y = SD_Predictions)) +
+  geom_point(color = "purple", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", col = "red", linetype = "solid", size = 1) +
+  labs(title = "SD Anxiety vs. SD Predictions",
+       x = "SD Anxiety",
+       y = "SD Predictions") +
+  custom_theme
+
+grid.arrange(p1, p2, p3, ncol = 1)
+
+#NP
+```
+
+
+
+
+
+
+
+
 # Throwaway Code
 Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
 ```{r throw 1}
