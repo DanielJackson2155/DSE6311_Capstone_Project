@@ -1219,6 +1219,8 @@ degree: For polynomial kernels, the degree of the polynomial.
 gamma: determines shape of decision boundary.
 
 Let us find optimal values of cost, epsilon and gamma in this model. Let us tune those hyper parameters on 10% of data to avoid long code processing time.
+
+WARNING: THIS CODE TAKES A LONG TIME TO RUN
 ```{r svm 2}
 set.seed(123)
 svm_model <- svm(train_feat, train_resp, 
@@ -1245,6 +1247,8 @@ print(paste("Test MSE:", round(test_mse, 2)))
 ```
 
 Fine tune SVM model to find best cost, epsilon, gamma parameters.
+
+WARNING: THIS CODE TAKES A LONG TIME TO RUN
 ```{r svm 3}
 # Define the task
 task <- makeRegrTask(data = as.data.frame(cbind(train_feat, train_resp)), target = "train_resp")
