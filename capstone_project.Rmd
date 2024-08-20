@@ -1005,9 +1005,9 @@ We see a very high mean squared error rate for both the training and test mean s
 ```{r rt 1}
 set.seed(123)
 cov_tree = tree(train_resp ~ ., reduced_train_df)
-summary(cbm_tree)
-plot(cbm_tree)
-text(cbm_tree, pretty = 0)
+summary(cov_tree)
+plot(cov_tree)
+text(cov_tree, pretty = 0)
 
 yhat = predict(cov_tree, newdata = reduced_train_df)
 mean((yhat - reduced_train_df$train_resp)^2)
@@ -1028,7 +1028,7 @@ test_matrix = model.matrix(test_resp~., reduced_test_df)
 cv_lam = cv.glmnet(train_matrix, reduced_train_df$train_resp, alpha = 1)
 best_lam = cv_lam$lambda.min
 best_lam
-# Lambda chosen by cross-validation is 1.074
+# Lambda chosen by cross-validation is 0.275
 # Now we fit lasso regression model and predict train data
 cov_lasso = glmnet(train_matrix, reduced_train_df$train_resp, alpha = 1)
 pred_lasso = predict(cov_lasso, s = best_lam, newx = train_matrix)
@@ -1407,11 +1407,11 @@ print(paste("Test MSE:", round(test_mse, 2)))
 
 This produced the same training and test MSE as the previous SVM model. Let use the the model with less cross validations for faster computing time.
 
-#Conclusion (Results, Discussions)
+# Conclusion (Results, Discussions)
 
-##re-reading data for an unscaled version of the data set.
+re-reading data for an unscaled version of the data set.
 
-#Read in Data
+Read in Data
 I am re-reading our data again up until the point before scaling so that we can use the predictions from the SVM for analysis between the response and predictor variables. I removed code that related to checking "n/a's" or dimensions as we already did that during our EDA phase.
 ```{r Conclusion 1}
 cov_df <- read.csv("capstone_data.csv")
@@ -1566,7 +1566,7 @@ for (p in plot_list) {
 ```
 
 
-#Let's see how the actual values compare to the predicted values by making scatter plot with both variables
+Let's see how the actual values compare to the predicted values by making scatter plot with both variables
 ```{r}
 
 plot_list <- list()
@@ -1607,11 +1607,11 @@ for (p in plot_list) {
 
 #NP
 ```
-#there is a slight overestimation for our redictions and it can be seen when plotted with the actual total_anixiety_level variable.
+There is a slight overestimation for our redictions and it can be seen when plotted with the actual total_anixiety_level variable.
 
 
-```
-#the scatter plot shows up that the predicted vs actual values have a positive corrolation, which should not be the case
+The scatter plot shows up that the predicted vs actual values have a positive corrolation, which should not be the case
+
 ```{r}
 
 ggplot(test_df, aes(x = total_anxiety_level, y = predictions)) +
@@ -1622,7 +1622,7 @@ ggplot(test_df, aes(x = total_anxiety_level, y = predictions)) +
 #NP
 ```
 
-#here is a plotly graph, which is interactive but cannot be used for our report because it will be a pdf or worddoc 
+Here is a plotly graph, which is interactive but cannot be used for our report because it will be a pdf or worddoc 
 ```{r}
 
 p <- ggplot(test_df, aes(x = total_anxiety_level, y = predictions)) +
@@ -1641,7 +1641,7 @@ print(paste("Correlation coefficient: ", correlation))
 #NP
 ```
 
-#a good way to see the overall spread of the values for our two variables would be by creating a translucent density plot, we will be following a colour patter to keep the consistency to make it easier for visualization 
+A good way to see the overall spread of the values for our two variables would be by creating a translucent density plot, we will be following a colour patter to keep the consistency to make it easier for visualization 
 ```{r}
 
 ggplot(test_df) +
@@ -1660,7 +1660,7 @@ ggplot(test_df) +
 #NP
 ```
 
-#now lets break it down by variables, starting with the most important one, age. Blue represents the actual and green represents the predicted, as you can see the predicted plot is somewhat normal but the mean and median is much higher than the actual values
+Now lets break it down by variables, starting with the most important one, age. Blue represents the actual and green represents the predicted, as you can see the predicted plot is somewhat normal but the mean and median is much higher than the actual values
 ```{r}
 
 ggplot(test_df, aes(x = age)) +
@@ -1681,7 +1681,7 @@ ggplot(test_df, aes(x = age)) +
 #NP
 ```
 
-#now lets create a box plot using the same method for the gender.
+Now lets create a box plot using the same method for the gender.
 
 ```{r}
 
@@ -1711,7 +1711,7 @@ ggplot(test_df, aes(x = as.factor(female))) +
 
 #NP
 ```
-#the model is definetly making overestimates for all the variables. However we can see some factors have a higher chance of having high anxiety compared to others. Female in this case vs male.
+The model is definetly making overestimates for all the variables. However we can see some factors have a higher chance of having high anxiety compared to others. Female in this case vs male.
 
 
 ```{r}
@@ -1749,7 +1749,7 @@ ggplot(test_df, aes(x = predictions, y = residuals)) +
         axis.title.y = element_text(size = 14))
 #NP
 ```
-#majority the residual values are negetive. The predicted values are greater than the actual values.
+Majority of the residual values are negetive. The predicted values are greater than the actual values.
 
 ```{r}
 cov_df_eda <-test_df
@@ -1890,13 +1890,6 @@ grid.arrange(p1, p2, p3, ncol = 1)
 
 #NP
 ```
-
-
-
-
-
-
-
 
 # Throwaway Code
 Typically anything that is above the ((75th quartile) + 1.5 * interquartile range (IQR)) or below ((75th quartile) - 1.5 * interquartile range (IQR)) are potential outliers and are identified by the boxplot.stats function. The variables "age," "hrs_outdoor," "hrs_exercise," are qualitative variables so we won't strictly adhere to these outliers identified by the boxplox.stats function. As for "bmi," this is a quantitative continuous variable and will use this function identify the potential outliers.
