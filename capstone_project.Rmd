@@ -507,10 +507,6 @@ hist((cov_df$total_anxiety_level)^2,
      xlab = "(Total Anxiety Level)^2",
      main = "Total Anxiety Level Squared Distribution")
 
-# q-q plot
-qqnorm((cov_df$total_anxiety_level)^2, main = "Q-Q Plot of (Total Anxiety Level)^2")
-qqline((cov_df$total_anxiety_level)^2, col = "red")
-
 
 # Shapiro-Wilk Test
 print(shapiro.test((cov_df$total_anxiety_level)^2))
@@ -527,6 +523,10 @@ hist(log(cov_df$total_anxiety_level),
      xlab = "log(Total Anxiety Level)",
      main = "Log Total Anxiety Level Distribution")
 
+
+# Shapiro-Wilk Test
+print(shapiro.test((log(cov_df$total_anxiety_level))))
+
 # DJ
 ```
 
@@ -538,7 +538,7 @@ Let us try the Box-Cox transformation:
 # First, we need to ensure our response variable is positive before transforming.
 range(cov_df$total_anxiety_level)
 # 0 to 500 is our range.
-# Therefore, we need to shift data to ensure it is all positive. We will shift by 1.
+# Cannot do a Box-Cox transformation on a 0 value. Therefore, we need to shift data to ensure it is all positive. We will shift by 1.
 cov_df$total_anxiety_level_shift <- cov_df$total_anxiety_level - min(cov_df$total_anxiety_level) + 1
 # Now we will fit linear model only using the intercept and no predictors
 model <- lm(total_anxiety_level_shift ~ 1, data = cov_df)
